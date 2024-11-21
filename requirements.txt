@@ -2,3 +2,4 @@ openai-whisper
 opencv-python
 datasets
 transformers
+tensorflow
