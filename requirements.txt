@@ -2,3 +2,8 @@ openai-whisper
 opencv-python
 datasets
 transformers
+torch
+torchvision
+facenet-pytorch
+mediapipe
+pillow
