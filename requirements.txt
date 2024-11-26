@@ -1,4 +1,8 @@
 openai-whisper
-opencv-python
 datasets
 transformers
+mediapipe 
+opencv-python 
+numpy
+flask
+flask-cors
