@@ -1,5 +1,4 @@
 openai-whisper
-opencv-python
 datasets
 transformers
 torch
@@ -7,3 +6,8 @@ torchvision
 facenet-pytorch
 mediapipe
 pillow
+mediapipe 
+opencv-python 
+numpy
+flask
+flask-cors
