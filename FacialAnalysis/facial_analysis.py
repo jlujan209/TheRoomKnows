@@ -17,7 +17,7 @@ face_detector = MTCNN(keep_all=False)
 
 def detect_and_crop_single_face(image_path, output_path=None):
     image = Image.open(image_path).convert("RGB")
-
+    
     # Detect faces
     boxes, _ = face_detector.detect(image)
 

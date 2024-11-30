@@ -1,4 +1,4 @@
-# The Room Knows 
+# The Room Knows
 
 ## Setup
 
@@ -9,9 +9,11 @@ Here are the commands you need to run in order:
 ```shell
 python -m venv env
 ```
+
 ```shell
 env/Scripts/activate
 ```
+
 ```shell
 pip install -r requirements.txt
 ```
