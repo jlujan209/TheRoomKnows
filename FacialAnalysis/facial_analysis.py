@@ -1,7 +1,6 @@
 import cv2
 import time
 from transformers import AutoImageProcessor, AutoModelForImageClassification
-from datasets import load_dataset
 import torch
 from datetime import datetime
 import os
@@ -54,6 +53,7 @@ def main():
     else:
         return 0
     img_count = 0
+    top_emotions = {}
     os.makedirs(f"photos/{cur_time}")
     while True:
         ret, frame = camera.read()  # Capture a frame
@@ -66,12 +66,29 @@ def main():
                 continue 
             emotion = classify_emotion(cropped_frame)
             print(f"emotion classified {emotion}")
-            with open(f"results_{cur_time}.csv", "a") as f:
+            with open(f"csvs/results_{cur_time}.csv", "a") as f:
                 f.write(f"{filename}, {emotion}\n")
             img_count += 1
+
+            if emotion in top_emotions:
+                top_emotions[emotion] += 1
+            else:
+                top_emotions[emotion] = 1
+            
+            if img_count == 50:
+                break
+
         else:
             print("Failed to capture image.")
         time.sleep(1)
+    
+    print("Image collection complete.")
+    os.makedirs("reports", exist_ok=True)
+    start_time = time.time()
+    with open(f"reports/emotion_report_{cur_time}.txt", "w") as f:
+        for emotion, count in top_emotions.items():
+            f.write(f"{emotion}: {count}\n")
+    print(f"Report generated in {time.time() - start_time} seconds.")
 
 def classify_emotion(image):
     inputs = processor(images=image, return_tensors="pt")
