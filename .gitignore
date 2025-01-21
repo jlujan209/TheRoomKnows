@@ -3,3 +3,5 @@
 /csvs
 facial_data.db
 /reports
+/SpeechAnalysis/*.mp4
+/.env

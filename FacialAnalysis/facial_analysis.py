@@ -87,7 +87,7 @@ def main():
     start_time = time.time()
     with open(f"reports/emotion_report_{cur_time}.txt", "w") as f:
         for emotion, count in top_emotions.items():
-            f.write(f"{emotion}: {count}\n")
+            f.write(f"{emotion}: {count}, {count/img_count}\n")
     print(f"Report generated in {time.time() - start_time} seconds.")
 
 def classify_emotion(image):

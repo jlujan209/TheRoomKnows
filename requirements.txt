@@ -11,3 +11,5 @@ opencv-python
 numpy
 flask
 flask-cors
+pyannote.audio
+python-dotenv
