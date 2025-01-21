@@ -13,3 +13,4 @@ flask
 flask-cors
 pyannote.audio
 python-dotenv
+openai

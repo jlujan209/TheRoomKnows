@@ -9,6 +9,10 @@ load_dotenv()
 hf_token = os.getenv("HF_TOKEN")
 
 def transcribe_and_diarize(audio_file, output_file):
+    # Load Pyannote diarization pipeline
+    print("Loading Pyannote pipeline...")
+    diarization_pipeline = Pipeline.from_pretrained("pyannote/speaker-diarization", use_auth_token=hf_token)
+
     # Load Whisper model
     print("Loading Whisper model...")
     whisper_model = whisper.load_model("base")
@@ -17,10 +21,7 @@ def transcribe_and_diarize(audio_file, output_file):
     print("Transcribing audio with Whisper...")
     transcription = whisper_model.transcribe(audio_file)
 
-    # Load Pyannote diarization pipeline
-    print("Loading Pyannote pipeline...")
-    diarization_pipeline = Pipeline.from_pretrained("pyannote/speaker-diarization", use_auth_token=hf_token)
-
+    
     # Perform speaker diarization
     print("Performing speaker diarization...")
     diarization = diarization_pipeline(audio_file)
@@ -58,8 +59,9 @@ if __name__ == "__main__":
     audio_file = sys.argv[1]
     output_file = sys.argv[2]
 
+    '''
     if not os.path.exists(audio_file):
         print(f"Error: File '{audio_file}' not found.")
         sys.exit(1)
-
+'''
     transcribe_and_diarize(audio_file, output_file)
