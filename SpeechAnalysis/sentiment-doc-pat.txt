@@ -1,0 +1,37 @@
+Doctor: Hi there, I'm Dr. Bella. Would you mind confirming your name in J.D.A.P. before we get started? Patient: Kevin Bacon, July 8th, 1958.  
+{'positive': 0.18563508987426758, 'negative': 0.6794496774673462, 'neutral': 0.134915292263031}
+Doctor: Thank you, Mr. Bacon. What brings you into the clinic today? Patient: I have been having this horrible cough that just won't go away.  
+{'positive': 0.8809165358543396, 'negative': 0.07233824580907822, 'neutral': 0.04674516245722771}
+Doctor: When did this cough start? Patient: About a week ago, it really started to get annoying.  
+{'positive': 0.03028528019785881, 'negative': 0.6737491488456726, 'neutral': 0.29596564173698425}
+Doctor: I see. And were you doing anything when the cough first started? Patient: No, not really. I was just at work and noticed a tickle in the back of my throat.  
+{'positive': 0.23933595418930054, 'negative': 0.6913298964500427, 'neutral': 0.06933419406414032}
+Doctor: Okay, and is your cough consistent throughout the day or does it seem to come and go? Patient: No, I would say it's consistent throughout the day. From the moment I get out of bed in the morning and stop coughing.  
+{'positive': 0.04388359934091568, 'negative': 0.8861207365989685, 'neutral': 0.06999567151069641}
+Doctor: Does anything seem to make your cough better or worse? Patient: I did notice that when I was on my morning run the other day, I began coughing really badly and I had to stop.  
+{'positive': 0.11304324865341187, 'negative': 0.8865782022476196, 'neutral': 0.000378619966795668}
+Doctor: Okay, so exercise makes it worse. Does anything make it better? Patient: No, not really.  
+{'positive': 0.39798712730407715, 'negative': 0.6016697883605957, 'neutral': 0.00034306818270124495}
+Doctor: Okay, and is this cough dry or are you coughing up mucus? Patient: Yeah, every now and then I would cough up some mucus.  
+{'positive': 0.46023982763290405, 'negative': 0.35287216305732727, 'neutral': 0.18688803911209106}
+Doctor: Okay, any pain or tightness in your chest? Patient: Yeah, I guess I do feel some tightness in my chest before I cough, but no pain really.  
+{'positive': 0.00950661487877369, 'negative': 0.9903210997581482, 'neutral': 0.0001722291490295902}
+Doctor: All right, and have you been wheezing at all? Patient: Yes, actually I have noticed that when I lay down to go to bed at night, I start wheezing.  
+{'positive': 0.23052853345870972, 'negative': 0.4503236413002014, 'neutral': 0.31914785504341125}
+Doctor: Got it. And have you felt short of breath recently? Patient: No, I wouldn't say short of breath, just the occasional tightness in my chest.  
+{'positive': 0.06962758302688599, 'negative': 0.863533616065979, 'neutral': 0.06683879345655441}
+Doctor: Any kind of fever, headache or chills? Patient: No, that I've noticed.  
+{'positive': 0.09981561452150345, 'negative': 0.8912110924720764, 'neutral': 0.00897334422916174}
+Doctor: Any fatigue or unintentional weight loss? Patient: Nope.  
+{'positive': 0.35727205872535706, 'negative': 0.5991249084472656, 'neutral': 0.043603066354990005}
+Doctor: Okay, any swelling or lumps around your neck or throat? Patient: Nope.  
+{'positive': 0.33298930525779724, 'negative': 0.5442262887954712, 'neutral': 0.12278440594673157}
+Doctor: Any recent infections or illnesses? Patient: No, I would say been in good health lately.  
+{'positive': 0.453867644071579, 'negative': 0.5415046215057373, 'neutral': 0.004627726972103119}
+Doctor: That's good to hear. Have you ever had a cough like this in the past? Patient: Um, yeah, I guess when I was a kid, I had asthma and I would get coughs like this once every nine days, but I haven't had it like this in years.  
+{'positive': 0.9997535347938538, 'negative': 0.00024577765725553036, 'neutral': 7.310857768061396e-07}
+Doctor: Okay, did you receive any kind of treatment? Patient: Yes, I saw a pulmonologist who gave me some steroids, but I was told I could stop taking them so I did.  
+{'positive': 0.5779765844345093, 'negative': 0.41698628664016724, 'neutral': 0.005037159658968449}
+Doctor: I see. Let me go ahead and perform a physical exam. 
+{'positive': 0.6248704195022583, 'negative': 0.12148144096136093, 'neutral': 0.25364813208580017}
+FINAL COUNTS: {'positive': 2, 'negative': 5, 'neutral': 11}
