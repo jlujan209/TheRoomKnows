@@ -1,2 +1,5 @@
 /env
 facial_data.db
+raw_output.json
+sampleaudio.wav
+transcription_output.txt
