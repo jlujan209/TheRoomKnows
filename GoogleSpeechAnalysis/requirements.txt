@@ -1,0 +1,5 @@
+google-cloud-speech
+pyaudio
+numpy
+python-dotenv
+openai
