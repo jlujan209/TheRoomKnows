@@ -63,5 +63,5 @@ if __name__ == "__main__":
     if not os.path.exists(audio_file):
         print(f"Error: File '{audio_file}' not found.")
         sys.exit(1)
-'''
+    '''
     transcribe_and_diarize(audio_file, output_file)

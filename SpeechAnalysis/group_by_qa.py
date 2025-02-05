@@ -83,6 +83,39 @@ def create_qa_objects(openai_response: dict) -> List[QAObjects]:
         qa_object = QAObjects(question=question, answer=answer)
         QAs.append(qa_object)
     return QAs
+
+def clean_with_openai(input_file: str, output_file: str, model: str = "gpt-4o-mini"):
+    client = OpenAI(api_key=KEY)
+
+    file_type = input_file.split(".")[-1]
+    if file_type == "json":
+        with open(input_file, "r") as f:
+            text = json.load(f)["text"]
+    elif file_type == "txt":
+        with open(input_file, "r") as f:
+            text = f.read()
+    else:
+        raise ValueError("Input file must be a json or txt file.")
+    print(f"text: {text}")
+
+    prompt = (
+        "Your task is to take a conversation between a doctor and clean up any errors in the text."
+    )
+
+    clean_text = client.chat.completions.create(
+        model=model,
+        messages=[{
+            "role": "system",
+            "content": prompt
+        },
+        {
+            "role": "user",
+            "content": text
+        }]
+    )
+
+    return clean_text
+
     
 if __name__ == "__main__":
     input_file = "test.json"
@@ -93,8 +126,8 @@ if __name__ == "__main__":
     '''
     doc = sentiment_analyzer("I love you")
     print(doc.cats)
-    '''
-    # openai_response = query_openai(input_file, output_file)
+   
+    openai_response = query_openai(input_file, output_file)
     
     with open(output_file, "r") as f:
         openai_response = json.load(f)
@@ -121,4 +154,10 @@ if __name__ == "__main__":
                 counts["neutral"] += 1
     with open(sentiment_output_file, "a") as f:
         f.write(f"FINAL COUNTS: {counts}\n")
+    '''
+
+    clean_text = clean_with_openai(input_file, output_file)
+    with open("cleaned_by_chat.txt", "w") as f:
+        f.write(clean_text.to_dict()["choices"][0]["message"]["content"])
+    
             
