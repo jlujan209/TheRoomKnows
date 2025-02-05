@@ -22,7 +22,7 @@ First you create the environment, then you acivate it, and finally, install all 
 
 ## Marv
 
-<img src="https://bme.engineering.arizona.edu/sites/bme.engineering.arizona.edu/files/styles/az_medium/public/2024-08/Marvin-Slepian.png?itok=9t0cTLCf">
+<img src="https://www.princeton.edu/~paw/web_exclusives/alumni_spotlight/alumni_spotlight_pics/as120804Slepian77.jpg">
 
 ## TODO
 
