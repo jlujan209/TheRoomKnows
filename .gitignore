@@ -1,4 +1,10 @@
 /env
+/photos
+/csvs
+facial_data.db
+/reports
+/SpeechAnalysis/*.mp4
+/.env
 facial_data.db
 raw_output.json
 sampleaudio.wav

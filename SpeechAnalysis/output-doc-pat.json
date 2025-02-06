@@ -1,0 +1,35 @@
+{
+    "id": "chatcmpl-Auon54nJOe0d7NZntU7PvT1CDR4LE",
+    "choices": [
+        {
+            "finish_reason": "stop",
+            "index": 0,
+            "logprobs": null,
+            "message": {
+                "content": "Doctor: Hi there, I'm Dr. Bella. Would you mind confirming your name in J.D.A.P. before we get started?|Patient: Kevin Bacon, July 8th, 1958.  \nDoctor: Thank you, Mr. Bacon. What brings you into the clinic today?|Patient: I have been having this horrible cough that just won't go away.  \nDoctor: When did this cough start?|Patient: About a week ago, it really started to get annoying.  \nDoctor: I see. And were you doing anything when the cough first started?|Patient: No, not really. I was just at work and noticed a tickle in the back of my throat.  \nDoctor: Okay, and is your cough consistent throughout the day or does it seem to come and go?|Patient: No, I would say it's consistent throughout the day. From the moment I get out of bed in the morning and stop coughing.  \nDoctor: Does anything seem to make your cough better or worse?|Patient: I did notice that when I was on my morning run the other day, I began coughing really badly and I had to stop.  \nDoctor: Okay, so exercise makes it worse. Does anything make it better?|Patient: No, not really.  \nDoctor: Okay, and is this cough dry or are you coughing up mucus?|Patient: Yeah, every now and then I would cough up some mucus.  \nDoctor: Okay, any pain or tightness in your chest?|Patient: Yeah, I guess I do feel some tightness in my chest before I cough, but no pain really.  \nDoctor: All right, and have you been wheezing at all?|Patient: Yes, actually I have noticed that when I lay down to go to bed at night, I start wheezing.  \nDoctor: Got it. And have you felt short of breath recently?|Patient: No, I wouldn't say short of breath, just the occasional tightness in my chest.  \nDoctor: Any kind of fever, headache or chills?|Patient: No, that I've noticed.  \nDoctor: Any fatigue or unintentional weight loss?|Patient: Nope.  \nDoctor: Okay, any swelling or lumps around your neck or throat?|Patient: Nope.  \nDoctor: Any recent infections or illnesses?|Patient: No, I would say been in good health lately.  \nDoctor: That's good to hear. Have you ever had a cough like this in the past?|Patient: Um, yeah, I guess when I was a kid, I had asthma and I would get coughs like this once every nine days, but I haven't had it like this in years.  \nDoctor: Okay, did you receive any kind of treatment?|Patient: Yes, I saw a pulmonologist who gave me some steroids, but I was told I could stop taking them so I did.  \nDoctor: I see. Let me go ahead and perform a physical exam.|",
+                "refusal": null,
+                "role": "assistant"
+            }
+        }
+    ],
+    "created": 1738104971,
+    "model": "gpt-4o-mini-2024-07-18",
+    "object": "chat.completion",
+    "service_tier": "default",
+    "system_fingerprint": "fp_72ed7ab54c",
+    "usage": {
+        "completion_tokens": 594,
+        "prompt_tokens": 643,
+        "total_tokens": 1237,
+        "completion_tokens_details": {
+            "accepted_prediction_tokens": 0,
+            "audio_tokens": 0,
+            "reasoning_tokens": 0,
+            "rejected_prediction_tokens": 0
+        },
+        "prompt_tokens_details": {
+            "audio_tokens": 0,
+            "cached_tokens": 0
+        }
+    }
+}

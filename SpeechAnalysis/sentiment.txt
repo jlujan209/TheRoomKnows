@@ -1,0 +1,36 @@
+Q: What is your name? A: My name is Kevin Bacon, born July 8th, 1958.  
+{'positive': 0.05759337171912193, 'negative': 0.7630881071090698, 'neutral': 0.17931853234767914}
+Q: What brings you into the clinic today? A: I have been having this horrible cough that just won't go away.  
+{'positive': 0.36099129915237427, 'negative': 0.42528197169303894, 'neutral': 0.2137267291545868}
+Q: When did this cough start? A: About a week ago, it really started to get annoying.  
+{'positive': 0.03243466466665268, 'negative': 0.7700225114822388, 'neutral': 0.19754278659820557}
+Q: Were you doing anything when the cough first started? A: No, not really. I was just at work and noticed a tickle in the back of my throat.  
+{'positive': 0.10410235822200775, 'negative': 0.8123130202293396, 'neutral': 0.08358458429574966}
+Q: Is your cough consistent throughout the day or does it seem to come and go? A: No, I would say it's consistent throughout the day.  
+{'positive': 0.12354534864425659, 'negative': 0.5082238912582397, 'neutral': 0.3682307302951813}
+Q: Does anything seem to make your cough better or worse? A: I did notice that when I was on my morning run the other day, I began coughing really badly and had to stop.  
+{'positive': 0.10493960231542587, 'negative': 0.8948403000831604, 'neutral': 0.00022002897458150983}
+Q: So exercise makes it worse. Does anything make it better? A: No, not really.  
+{'positive': 0.25759315490722656, 'negative': 0.7419726252555847, 'neutral': 0.00043422350427135825}
+Q: Is this cough dry or are you coughing up mucus? A: Yeah, every now and then I would cough up some mucus.  
+{'positive': 0.32350775599479675, 'negative': 0.45724642276763916, 'neutral': 0.21924591064453125}
+Q: Any pain or tightness in your chest? A: Yeah, I guess I do feel some tightness in my chest before I cough, but no pain really.  
+{'positive': 0.005682037677615881, 'negative': 0.9940943121910095, 'neutral': 0.00022363278549164534}
+Q: Have you been wheezing at all? A: Yes, actually I have noticed that when I lay down to go to bed at night, I start wheezing.  
+{'positive': 0.27909794449806213, 'negative': 0.43204036355018616, 'neutral': 0.2888617217540741}
+Q: Have you felt short of breath recently? A: No, I wouldn't say short of breath, just the occasional tightness in my chest.  
+{'positive': 0.029434852302074432, 'negative': 0.8706163763999939, 'neutral': 0.09994880855083466}
+Q: Any kind of fever, headache or chills? A: No, that I've noticed.  
+{'positive': 0.0944804772734642, 'negative': 0.9002260565757751, 'neutral': 0.0052934628911316395}
+Q: Any fatigue or unintentional weight loss? A: Nope.  
+{'positive': 0.34896478056907654, 'negative': 0.6244927048683167, 'neutral': 0.02654249407351017}
+Q: Any swelling or lumps around your neck or throat? A: Nope.  
+{'positive': 0.21997688710689545, 'negative': 0.603809118270874, 'neutral': 0.1762140542268753}
+Q: Any recent infections or illnesses? A: No, I would say being in good health lately.  
+{'positive': 0.3568725287914276, 'negative': 0.6403020620346069, 'neutral': 0.0028254559729248285}
+Q: Have you ever had a cough like this in the past? A: Um, yeah, I guess when I was a kid, I had asthma and I would get coughs like this once every nine days, but I haven't had it like this in years.  
+{'positive': 0.9915942549705505, 'negative': 0.00839171651750803, 'neutral': 1.3990608749736566e-05}
+Q: Did you receive any kind of treatment? A: Yes, I saw a pulmonologist who gave me some steroids, but I was told I could stop taking them so I did.  
+{'positive': 0.4408186972141266, 'negative': 0.5529257655143738, 'neutral': 0.0062555489130318165}
+Q: Let me go ahead and perform a physical exam. A: [No response to the request].
+{'positive': 0.2438403069972992, 'negative': 0.7464616298675537, 'neutral': 0.009698091074824333}
