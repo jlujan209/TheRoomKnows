@@ -23,7 +23,3 @@ First you create the environment, then you acivate it, and finally, install all 
 ## Marv
 
 <img src="https://www.princeton.edu/~paw/web_exclusives/alumni_spotlight/alumni_spotlight_pics/as120804Slepian77.jpg">
-
-## TODO
-
-look at keybert, extracts key phrases from text
