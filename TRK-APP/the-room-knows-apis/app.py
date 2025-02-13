@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, make_response
 from flask_cors import CORS
 import sqlite3
 from dotenv import load_dotenv
@@ -46,16 +46,14 @@ def add_new_patient():
     }), 201
     
 
-
-
 @app.route('/patients/search', methods=['GET'])
 def get_patient():
     api_key = request.headers.get('API-Key')
     if api_key != API_KEY:
         return jsonify({"error": "Unauthorized"}), 401
     
-    data=request.get_json()
-    cursor.execute('''SELECT * FROM patient_data WHERE patient_id=?''', (data.get('patient_id')))
+    id=request.args.get('patient_id')
+    cursor.execute('''SELECT * FROM patient_data WHERE patient_id=?''', (id,))
     row = cursor.fetchone()
 
     return jsonify({"patient": dict(row)}), 200
@@ -64,12 +62,19 @@ def get_patient():
 def delete_patient():
     api_key = request.headers.get('API-Key')
     if api_key != API_KEY:
-        return jsonify({"error": "Unauthorized"}), 401
+        response = make_response(jsonify({"error": "Unauthorized"}), 401)
+    else:
+        id = request.args.get('patient_id')
+        cursor.execute('''DELETE FROM patient_data WHERE patient_id=?''', (id,))
+        conn.commit()
+        response = make_response(jsonify({"message": "Successful Deletion"}), 201)
     
-    data=request.get_json()
-    cursor.execute('''DELETE FROM patient_data WHERE patient_id=?''', (data.get('patient_id')))
-    conn.commit()
-    return jsonify({"message": "Successful Deletion", "data": data}), 201
+    # Set headers
+    response.headers['Content-Type'] = 'application/json'
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'POST,PATCH,OPTIONS'
+    
+    return response
 
 @app.route('/patients/edit', methods=['PUT'])
 def edit_patient():
@@ -82,7 +87,7 @@ def edit_patient():
     last_name = data.get('patient_last_name')
     age = data.get('patient_age')
     last_visit = data.get('last_visit')
-    id = data.get('patient_id')
+    id = request.args.get('patient_id')
     cursor.execute('''UPDATE patient_data 
                    SET patient_first_name=?, patient_last_name=?, patient_age=?, last_visit=? 
                    WHERE patient_id=?''', (first_name, last_name, age, last_visit, id))
@@ -91,3 +96,6 @@ def edit_patient():
 
 if __name__ == '__main__':
     app.run(debug=True, ssl_context=('./cert.pem', './key.pem'))
+
+    #If not using with ssl use this instead: 
+    # app.run(debug=True)

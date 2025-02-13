@@ -1,10 +1,43 @@
 'use client';
 import { useRouter } from 'next/navigation';
-import { patientsList } from "./sampledata/sampledata";
+import { useEffect, useState } from 'react';
 import './global.css';
+
+const api_key = process.env.NEXT_PUBLIC_API_KEY;
 
 export default function Home() {
   const router = useRouter();
+  const [patientsList, setPatientsList ] = useState([]);
+  const [ loading, setLoading ] = useState(true);
+  const [ error, setError ] = useState(null);
+
+  useEffect(()=>{
+    const fetchPatients = async() => {
+      try {
+        const response = await fetch('https://localhost:5000/patients/all', {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            "API-Key": api_key
+          }
+        });
+        if (!response.ok) {
+          throw new Error(`HTTPS error! Status: ${response.status}`);
+        }
+        const data = await response.json();
+        setPatientsList(data.patients);
+      } catch (error) {
+        setError(error.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchPatients();
+  },[]);
+
+  if (loading) return <p>Loading patients...</p>;
+  if (error) return <p>Error fetching data: {error}</p>;
 
   return (
     <>
