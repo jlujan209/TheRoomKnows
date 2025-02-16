@@ -66,7 +66,7 @@ function AddPatientForm() {
             }
 
             console.log("Patient added successfully.");
-            router.push('/'); // Redirect to home page after successful submission
+            router.push('/home'); // Redirect to home page after successful submission
         } catch (error) {
             console.error("Error adding patient:", error);
             setError(error.message);
@@ -121,7 +121,7 @@ function AddPatientForm() {
             </div>
 
             {error && <p style={{ color: 'red' }}>{error}</p>}
-
+            <button type="button" onClick={()=> router.back()}>Cancel</button>
             <button type="submit" disabled={!isFormValid || isSubmitting}>
                 {isSubmitting ? "Submitting..." : "Submit"}
             </button>

@@ -68,7 +68,7 @@ export default function EditPage() {
         if (
             !patientData?.patient_first_name?.trim() ||
             !patientData?.patient_last_name?.trim() ||
-            !patientData?.patient_age?.trim() ||
+            !String(patientData?.patient_age).trim() ||
             !patientData?.last_visit?.trim()
         ) {
             alert("Please fill out all required fields.");
@@ -94,7 +94,7 @@ export default function EditPage() {
             }
 
             console.log("Patient updated successfully.");
-            router.push('/'); 
+            router.push('/home'); 
         } catch (error) {
             console.error("Error updating patient:", error);
             setError(error.message);
@@ -153,6 +153,7 @@ export default function EditPage() {
                 </div>
 
                 {error && <p style={{ color: 'red' }}>{error}</p>}
+                <button type="button" onClick={()=> router.back()}>Cancel</button>
                 <button type="submit" disabled={isSubmitting}>
                     {isSubmitting ? "Updating..." : "Update Patient"}
                 </button>

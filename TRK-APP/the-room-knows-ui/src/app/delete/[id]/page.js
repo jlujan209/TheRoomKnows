@@ -6,7 +6,7 @@ const api_key = process.env.NEXT_PUBLIC_API_KEY;
 
 export default function DeletePage() {
   const { id } = useParams();
-  const router = useRouter();  // Use this to navigate after deletion
+  const router = useRouter(); 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [loading, setLoading] = useState(true);
@@ -17,7 +17,6 @@ export default function DeletePage() {
     return <h1>Loading...</h1>; 
   }
 
-  // Fetch patient details
   useEffect(() => {
     const fetchPatients = async () => {
       try {
@@ -58,7 +57,7 @@ export default function DeletePage() {
       if (!response.ok) {
         throw new Error(`Deletion failed! Status: ${response.status}`);
       }
-      router.push('/'); 
+      router.push('/home'); 
     } catch (error) {
       setError(error.message);
     } finally {
@@ -75,7 +74,7 @@ export default function DeletePage() {
       <hr />
       <p>Are you sure you want to delete {firstName} {lastName}?</p>
       <div>
-        <button onClick={() => router.push('/')}>Cancel</button>
+        <button onClick={() => router.back()}>Cancel</button>
         <button onClick={handleDelete} disabled={deleting}>
           {deleting ? 'Deleting...' : 'Confirm'}
         </button>
