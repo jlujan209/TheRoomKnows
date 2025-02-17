@@ -1,10 +1,11 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import withAuth from '../hoc/withAuth';
 
 const api_key = process.env.NEXT_PUBLIC_API_KEY;
 
-export default function AddPage() {
+function AddPage() {
     return (
         <div className="container mt-5">
             <h1 className="text-center" style={{ color: "#0C234B", fontWeight: "bold" }}>Add Patient</h1>
@@ -129,3 +130,6 @@ function AddPatientForm() {
         </form>
     );
 }
+
+
+export default withAuth(AddPage);

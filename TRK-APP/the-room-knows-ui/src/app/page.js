@@ -38,7 +38,7 @@ export default function Home() {
         type="button"
         className="btn btn-lg text-white px-4 mt-3"
         style={{ backgroundColor: "#AB0520" }}
-        onClick={() => router.push("/home")}
+        onClick={() => router.push("/login")}
       >
         Get Started
       </button>

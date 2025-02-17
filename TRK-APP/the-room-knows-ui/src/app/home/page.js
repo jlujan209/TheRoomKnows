@@ -1,14 +1,21 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import withAuth from "../hoc/withAuth";
 
 const api_key = process.env.NEXT_PUBLIC_API_KEY;
 
-export default function Home() {
+function Home() {
   const router = useRouter();
   const [patientsList, setPatientsList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Logout function
+  const handleLogout = () => {
+    localStorage.removeItem("authToken"); // Remove token
+    router.push("/login"); // Redirect to login page
+  };
 
   useEffect(() => {
     const fetchPatients = async () => {
@@ -37,6 +44,17 @@ export default function Home() {
 
   return (
     <div className="container mt-5">
+      {/* Logout Button */}
+      <div className="d-flex justify-content-end mb-3">
+        <button
+          onClick={handleLogout}
+          className="btn btn-danger"
+          style={{ borderRadius: "8px" }}
+        >
+          Logout
+        </button>
+      </div>
+
       <h1 className="text-center" style={{ color: "#0C234B", fontWeight: "bold" }}>
         The Room Knows
       </h1>
@@ -142,3 +160,5 @@ export default function Home() {
     </div>
   );
 }
+
+export default withAuth(Home);

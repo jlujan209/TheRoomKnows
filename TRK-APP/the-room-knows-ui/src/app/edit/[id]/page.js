@@ -1,10 +1,11 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import withAuth from '../../hoc/withAuth';
 
 const api_key = process.env.NEXT_PUBLIC_API_KEY;
 
-export default function EditPage() {
+function EditPage() {
     const { id } = useParams();
     const router = useRouter();
     const [patientData, setPatientData] = useState({
@@ -184,3 +185,5 @@ export default function EditPage() {
         </>
     );
 }
+
+export default withAuth(EditPage);

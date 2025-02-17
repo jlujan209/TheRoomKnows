@@ -1,10 +1,11 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import withAuth from '../../hoc/withAuth';
 
 const api_key = process.env.NEXT_PUBLIC_API_KEY;
 
-export default function NewVisitPage() {
+function NewVisitPage() {
   const { id } = useParams();
   const [patientData, setPatientData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -69,9 +70,9 @@ export default function NewVisitPage() {
       <form>
         {[
           { label: "Motion Analysis", description: "Tracks body movement to detect irregular patterns." },
-          { label: "Facial Mapping", description: "Analyzes facial structure for recognition and expression tracking." },
-          { label: "Emotion Detection", description: "Identifies emotions based on facial expressions and voice tone." },
-          { label: "Speech Analysis", description: "Evaluates speech patterns for abnormalities and coherence." }
+          { label: "Facial Mapping", description: "Analyzes facial changes across visits for significant changes." },
+          { label: "Emotion Detection", description: "Identifies emotions based on facial expressions throughout a visit" },
+          { label: "Speech Analysis", description: "Speech-to-Text and Sentiment Analysis." }
         ].map((option, index) => (
           <div key={index} className="form-group mb-3">
             <div className="d-flex justify-content-between align-items-center">
@@ -107,3 +108,5 @@ export default function NewVisitPage() {
     </div>
   );
 }
+
+export default withAuth(NewVisitPage);

@@ -3,6 +3,7 @@ from flask_cors import CORS
 import sqlite3
 from dotenv import load_dotenv
 import os
+from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, JWTManager
 
 app = Flask(__name__)
 CORS(app)
@@ -12,7 +13,31 @@ conn = sqlite3.connect("patients.db", check_same_thread=False)
 conn.row_factory = sqlite3.Row
 cursor = conn.cursor()
 
+jwt = JWTManager(app)
+app.config['JWT_SECRET_KEY'] = os.getenv('JWT_KEY')
+
 API_KEY = os.getenv('API_KEY')
+
+users = {
+    "username": "password"
+}
+
+@app.route('/login', methods=['POST'])
+def login():
+    api_key = request.headers.get('API-Key')
+    if api_key != API_KEY:
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.json
+    username = data.get("username")
+    password = data.get("password")
+
+    # Check if user exists and password matches
+    if username in users and users[username] == password:
+        token = create_access_token(identity=username)
+        return jsonify(access_token=token), 200
+
+    return jsonify({"error": "Invalid credentials"}), 401
+
 
 @app.route('/patients/all', methods=['GET'])
 def get_all_patients(): 

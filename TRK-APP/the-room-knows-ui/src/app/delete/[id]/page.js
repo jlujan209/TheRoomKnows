@@ -1,10 +1,11 @@
 'use client';
 import { useParams, useRouter } from 'next/navigation'; 
 import { useState, useEffect } from 'react';
+import withAuth from '../../hoc/withAuth';
 
 const api_key = process.env.NEXT_PUBLIC_API_KEY;
 
-export default function DeletePage() {
+function DeletePage() {
   const { id } = useParams();
   const router = useRouter(); 
   const [firstName, setFirstName] = useState('');
@@ -92,3 +93,5 @@ export default function DeletePage() {
     </div>
   );
 }
+
+export default withAuth(DeletePage);
