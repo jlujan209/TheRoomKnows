@@ -33,7 +33,6 @@ export default function EditPage() {
                 }
 
                 const data = await response.json();
-                console.log(data);
                 if (data) {
                     setPatientData({
                         patient_first_name: data.patient.patient_first_name || '',
@@ -94,7 +93,7 @@ export default function EditPage() {
             }
 
             console.log("Patient updated successfully.");
-            router.push('/home'); 
+            router.push('/home');
         } catch (error) {
             console.error("Error updating patient:", error);
             setError(error.message);
@@ -103,61 +102,85 @@ export default function EditPage() {
         }
     };
 
-    if (loading) return <h1>Loading patient data...</h1>;
+    if (loading) return (
+        <div className="container mt-4">
+            <h1 className="text-center mb-4">Edit Patient Information</h1>
+            <hr />
+            <div className="d-flex justify-content-center align-items-center" style={{ height: '200px' }}>
+                <div className="spinner-border text-primary" role="status">
+                    <span className="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        </div>
+    );
+
     if (error) return <h1>Error: {error}</h1>;
 
     return (
         <>  
-            <h1>Editing Patient Info</h1>
-            <hr></hr>
-            <form onSubmit={handleSubmit}>
-                <div>
-                    <label>First Name:</label>
-                    <input
-                        type="text"
-                        name="patient_first_name"
-                        value={patientData?.patient_first_name || ""}
-                        onChange={handleChange}
-                        required
-                    />
-                </div>
-                <div>
-                    <label>Last Name:</label>
-                    <input
-                        type="text"
-                        name="patient_last_name"
-                        value={patientData?.patient_last_name || ""}
-                        onChange={handleChange}
-                        required
-                    />
-                </div>
-                <div>
-                    <label>Age:</label>
-                    <input
-                        type="text"
-                        name="patient_age"
-                        value={patientData?.patient_age || ""}
-                        onChange={handleChange}
-                        required
-                    />
-                </div>
-                <div>
-                    <label>Last Visit:</label>
-                    <input
-                        type="text"
-                        name="last_visit"
-                        value={patientData?.last_visit || ""}
-                        onChange={handleChange}
-                        required
-                    />
-                </div>
+            <div className="container mt-4">
+                <h1 className="text-center mb-4">Edit Patient Information</h1>
+                <hr />
+                <form onSubmit={handleSubmit}>
+                    <div className="mb-3">
+                        <label htmlFor="patient_first_name" className="form-label">First Name</label>
+                        <input
+                            type="text"
+                            className="form-control"
+                            id="patient_first_name"
+                            name="patient_first_name"
+                            value={patientData?.patient_first_name || ""}
+                            onChange={handleChange}
+                            required
+                        />
+                    </div>
+                    <div className="mb-3">
+                        <label htmlFor="patient_last_name" className="form-label">Last Name</label>
+                        <input
+                            type="text"
+                            className="form-control"
+                            id="patient_last_name"
+                            name="patient_last_name"
+                            value={patientData?.patient_last_name || ""}
+                            onChange={handleChange}
+                            required
+                        />
+                    </div>
+                    <div className="mb-3">
+                        <label htmlFor="patient_age" className="form-label">Age</label>
+                        <input
+                            type="number"
+                            className="form-control"
+                            id="patient_age"
+                            name="patient_age"
+                            value={patientData?.patient_age || ""}
+                            onChange={handleChange}
+                            required
+                        />
+                    </div>
+                    <div className="mb-3">
+                        <label htmlFor="last_visit" className="form-label">Last Visit</label>
+                        <input
+                            type="date"
+                            className="form-control"
+                            id="last_visit"
+                            name="last_visit"
+                            value={patientData?.last_visit || ""}
+                            onChange={handleChange}
+                            required
+                        />
+                    </div>
 
-                {error && <p style={{ color: 'red' }}>{error}</p>}
-                <button type="button" onClick={()=> router.back()}>Cancel</button>
-                <button type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? "Updating..." : "Update Patient"}
-                </button>
-            </form>
+                    {error && <p className="text-danger">{error}</p>}
+
+                    <div className="d-flex justify-content-between">
+                        <button type="button" className="btn btn-secondary" onClick={() => router.back()}>Cancel</button>
+                        <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
+                            {isSubmitting ? "Updating..." : "Update Patient"}
+                        </button>
+                    </div>
+                </form>
+            </div>
         </>
     );
 }

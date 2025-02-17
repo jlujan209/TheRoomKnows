@@ -13,10 +13,6 @@ export default function DeletePage() {
   const [error, setError] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
-  if (!id) {
-    return <h1>Loading...</h1>; 
-  }
-
   useEffect(() => {
     const fetchPatients = async () => {
       try {
@@ -40,7 +36,9 @@ export default function DeletePage() {
       }
     };
 
-    fetchPatients();
+    if (id) {
+      fetchPatients();
+    }
   }, [id]);
 
   const handleDelete = async () => {
@@ -65,20 +63,32 @@ export default function DeletePage() {
     }
   };
 
-  if (loading) return <p>Loading patient data...</p>;
+  if (loading) return (
+    <div className="container mt-4">
+      <h1 className="text-center mb-4">Delete Patient</h1>
+      <hr />
+      <div className="d-flex justify-content-center align-items-center" style={{ height: '200px' }}>
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </div>
+      </div>
+    </div>
+  );
+
   if (error) return <p>Error: {error}</p>;
 
   return (
-    <>
-      <h1>Deleting Patient</h1>
+    <div className="container mt-4">
+      <h1 className="text-center mb-4">Delete Patient</h1>
       <hr />
-      <p>Are you sure you want to delete {firstName} {lastName}?</p>
-      <div>
-        <button onClick={() => router.back()}>Cancel</button>
-        <button onClick={handleDelete} disabled={deleting}>
-          {deleting ? 'Deleting...' : 'Confirm'}
+      <p className="text-center">Are you sure you want to delete <strong>{firstName} {lastName}</strong>?</p>
+      <div className="d-flex justify-content-center gap-3">
+        <button className="btn btn-secondary" onClick={() => router.back()}>Cancel</button>
+        <button className="btn btn-danger" onClick={handleDelete} disabled={deleting}>
+          {deleting ? 'Deleting...' : 'Confirm Deletion'}
         </button>
       </div>
-    </>
+      {error && <p className="text-danger text-center mt-3">{error}</p>}
+    </div>
   );
 }
