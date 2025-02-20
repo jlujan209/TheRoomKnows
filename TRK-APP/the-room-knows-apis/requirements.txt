@@ -2,3 +2,7 @@ flask
 flask-cors
 python-dotenv
 flask-jwt-extended
+flask-socketio
+tensorflow
+numpy
+pillow

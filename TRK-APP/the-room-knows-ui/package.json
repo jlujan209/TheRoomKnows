@@ -10,10 +10,13 @@
   },
   "dependencies": {
     "@mui/material": "^6.4.4",
+    "axios": "^1.7.9",
     "bootstrap": "^5.3.3",
     "next": "15.1.6",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-webcam": "^7.2.0",
+    "socket.io-client": "^4.8.1",
     "the-room-knows-ui": "file:"
   },
   "devDependencies": {

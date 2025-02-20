@@ -4,23 +4,39 @@ import sqlite3
 from dotenv import load_dotenv
 import os
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, JWTManager
+from flask_socketio import SocketIO, emit
+import base64
+import numpy as np
+import tensorflow as tf
+import cv2
 
+# Flask app with CORS enabled
 app = Flask(__name__)
 CORS(app)
 load_dotenv()
 
+# For SQLite Connection:
 conn = sqlite3.connect("patients.db", check_same_thread=False)
 conn.row_factory = sqlite3.Row
 cursor = conn.cursor()
 
+# For Login token:
 jwt = JWTManager(app)
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_KEY')
 
+# For Websocket
+socketio = SocketIO(app, cors_allowed_origins="*")
+
 API_KEY = os.getenv('API_KEY')
 
+# Dummy user db for dev
 users = {
     "username": "password"
 }
+
+# Emotion Detection Model
+ed_model = tf.keras.models.load_model("emotion_detection.keras")
+emotion_labels = ["Angry", "Happy", "Neutral", "Sad", "Surprise"]
 
 @app.route('/login', methods=['POST'])
 def login():
@@ -119,8 +135,40 @@ def edit_patient():
     conn.commit()
     return jsonify({"message": "Updated Successful", "data": data}), 201
 
-if __name__ == '__main__':
-    app.run(debug=True, ssl_context=('./cert.pem', './key.pem'))
+# Web Sockets Routes to handle real-time connections
+@socketio.on('connect')
+def handle_connect():
+    print('Client Connected')
+    emit("connection_response", {"message": "Connected to Websocket"})
 
+@socketio.on('disconnect')
+def handle_disconnect():
+    print('Client disconnected') 
+
+
+@app.route("/analysis/emotion-detection", methods=["POST"])
+def predict_emotion():
+    data = request.json
+    image_data = data.get("image", "")
+    if not image_data:
+        return jsonify({"error": "No Image Provided"}), 400
+    
+    image_bytes = base64.b64decode(image_data)
+    np_arr = np.frombuffer(image_bytes, np.uint8)
+    image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+    #image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    image = cv2.resize(image, (224, 224))
+    image = image / 255.0
+    image = np.expand_dims(image, axis=-1)
+    image = np.expand_dims(image, axis=0) 
+
+    prediction = ed_model.predict(image)
+    emotion = emotion_labels[np.argmax(prediction)]
+
+    return jsonify({"emotion": emotion, "confidence": float(np.max(prediction))})
+
+if __name__ == '__main__':
+    #app.run(debug=True, ssl_context=('./cert.pem', './key.pem'))
+    socketio.run(app, debug=True, host="0.0.0.0", port=5000, ssl_context=('./cert.pem', './key.pem'))
     #If not using with ssl use this instead: 
     # app.run(debug=True)
