@@ -152,18 +152,20 @@ def predict_emotion():
     image_data = data.get("image", "")
     if not image_data:
         return jsonify({"error": "No Image Provided"}), 400
-    
-    image_bytes = base64.b64decode(image_data)
-    np_arr = np.frombuffer(image_bytes, np.uint8)
-    image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
-    #image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    image = cv2.resize(image, (224, 224))
-    image = image / 255.0
-    image = np.expand_dims(image, axis=-1)
-    image = np.expand_dims(image, axis=0) 
+    try: 
+        image_bytes = base64.b64decode(image_data)
+        np_arr = np.frombuffer(image_bytes, np.uint8)
+        image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+        #image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        image = cv2.resize(image, (224, 224))
+        image = image / 255.0
+        image = np.expand_dims(image, axis=-1)
+        image = np.expand_dims(image, axis=0) 
 
-    prediction = ed_model.predict(image)
-    emotion = emotion_labels[np.argmax(prediction)]
+        prediction = ed_model.predict(image)
+        emotion = emotion_labels[np.argmax(prediction)]
+    except:
+        return jsonify({"error": "Failed to predict emotion"})
 
     return jsonify({"emotion": emotion, "confidence": float(np.max(prediction))})
 

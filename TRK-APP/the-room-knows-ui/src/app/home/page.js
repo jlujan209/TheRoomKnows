@@ -11,10 +11,9 @@ function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Logout function
   const handleLogout = () => {
-    localStorage.removeItem("authToken"); // Remove token
-    router.push("/login"); // Redirect to login page
+    localStorage.removeItem("authToken"); 
+    router.push("/login"); 
   };
 
   useEffect(() => {
@@ -44,7 +43,6 @@ function Home() {
 
   return (
     <div className="container mt-5">
-      {/* Logout Button */}
       <div className="d-flex justify-content-end mb-3">
         <button
           onClick={handleLogout}

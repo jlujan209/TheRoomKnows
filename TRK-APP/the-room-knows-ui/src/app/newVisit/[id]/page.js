@@ -11,6 +11,8 @@ function NewVisitPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [expanded, setExpanded] = useState({});
+  const [selectedOptions, setSelectedOptions] = useState({}); 
+  const [formError, setFormError] = useState(""); 
   const router = useRouter();
 
   useEffect(() => {
@@ -48,6 +50,30 @@ function NewVisitPage() {
     setExpanded((prev) => ({ ...prev, [option]: !prev[option] }));
   };
 
+  const handleCheckboxChange = (event) => {
+    const { id, checked } = event.target;
+    setSelectedOptions((prev) => ({ ...prev, [id]: checked }));
+  };
+
+  const handleSubmit = (event) => {
+    event.preventDefault(); 
+    const selectedCount = Object.values(selectedOptions).filter(Boolean).length;
+
+    if (selectedCount === 0) {
+      setFormError("At least one analysis option must be selected.");
+      return;
+    }
+
+    setFormError(""); 
+
+    // TODO: Will need to change this once the other modules have been integrated.
+    if (selectedOptions["EmotionDetection"]) {
+      router.push(`/analysis/modules/${'0'/*Placeholder for visit id*/}`); // TODO: Need to change once I implement the visit Id 
+    } else {
+      setFormError(`Module(s) not implemented yet`);
+    }
+  };
+
   if (loading) {
     return (
       <div className="container mt-4 text-center">
@@ -67,11 +93,11 @@ function NewVisitPage() {
       <hr />
       <p className="text-center mb-4">Please select the types of analysis you wish to conduct:</p>
 
-      <form>
+      <form onSubmit={handleSubmit}>
         {[
           { label: "Motion Analysis", description: "Tracks body movement to detect irregular patterns." },
           { label: "Facial Mapping", description: "Analyzes facial changes across visits for significant changes." },
-          { label: "Emotion Detection", description: "Identifies emotions based on facial expressions throughout a visit" },
+          { label: "Emotion Detection", description: "Identifies emotions based on facial expressions throughout a visit." },
           { label: "Speech Analysis", description: "Speech-to-Text and Sentiment Analysis." }
         ].map((option, index) => (
           <div key={index} className="form-group mb-3">
@@ -90,7 +116,7 @@ function NewVisitPage() {
                 className="form-check-input" 
                 type="checkbox" 
                 id={option.label.replace(/\s+/g, '')} 
-                defaultChecked 
+                onChange={handleCheckboxChange}
               />
               <label className="form-check-label" htmlFor={option.label.replace(/\s+/g, '')}>Enable</label>
             </div>
@@ -100,8 +126,10 @@ function NewVisitPage() {
           </div>
         ))}
 
+        {formError && <div className="alert alert-danger mt-3">{formError}</div>}
+
         <div className="d-flex justify-content-center gap-3 mt-4">
-          <button type="button" onClick={()=> router.back()} className="btn btn-secondary">Cancel</button>
+          <button type="button" onClick={() => router.back()} className="btn btn-secondary">Cancel</button>
           <button type="submit" className="btn btn-primary">Start Analysis</button>
         </div>
       </form>
