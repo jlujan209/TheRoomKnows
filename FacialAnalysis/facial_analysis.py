@@ -39,12 +39,13 @@ def detect_and_crop_single_face(image_path, output_path=None):
 
     return face
 
-def main():
+def main(stop_event):
     cur_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     print(f"Starting image collection at {cur_time}")
     if not camera.isOpened():
         print("Error: Could not access the camera.")
         exit()
+    '''
     if input("enter 'start' to begin: ") == "start":
         os.makedirs("csvs", exist_ok=True)
         with open(f"csvs/results_{cur_time}.csv", "w") as f:
@@ -52,10 +53,11 @@ def main():
         print("starting image collection")        
     else:
         return 0
+    '''
     img_count = 0
     top_emotions = {}
     os.makedirs(f"photos/{cur_time}")
-    while True:
+    while not stop_event.is_set():
         ret, frame = camera.read()  # Capture a frame
         if ret:
             filename = f"photos/{cur_time}/image_{img_count}.jpg"
@@ -80,8 +82,9 @@ def main():
 
         else:
             print("Failed to capture image.")
-        time.sleep(1)
-    
+        time.sleep(2)
+    camera.release()
+    cv2.destroyAllWindows()
     print("Image collection complete.")
     os.makedirs("reports", exist_ok=True)
     start_time = time.time()
@@ -103,7 +106,9 @@ def classify_emotion(image):
 
     return predicted_class
 
+'''
 if __name__ == "__main__":
     main()
     camera.release()
     cv2.destroyAllWindows()
+'''

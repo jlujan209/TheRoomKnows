@@ -1,6 +1,8 @@
 import whisper
+import json
 
-model = whisper.load_model('base')
-result = model.transcribe('whisper_recording.m4a')
-
-print(result)
+def transcribe(in_file, out_file):
+    model = whisper.load_model('base')
+    result = model.transcribe(in_file)
+    with open(out_file, 'w') as f:
+        json.dump(result, f)
