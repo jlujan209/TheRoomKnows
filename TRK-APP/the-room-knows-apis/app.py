@@ -1,14 +1,21 @@
+import eventlet
+eventlet.monkey_patch()
+
 from flask import Flask, request, jsonify, make_response
 from flask_cors import CORS
-import sqlite3
-from dotenv import load_dotenv
-import os
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, JWTManager
 from flask_socketio import SocketIO, emit
-import base64
-import numpy as np
+from dotenv import load_dotenv
 import tensorflow as tf
+import numpy as np
+import sqlite3
+import base64
+import os
 import cv2
+import ssl
+
+import eventlet.wsgi
+import eventlet.greenio.base
 
 # Flask app with CORS enabled
 app = Flask(__name__)
@@ -25,11 +32,19 @@ jwt = JWTManager(app)
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_KEY')
 
 # For Websocket
-socketio = SocketIO(app, cors_allowed_origins="*")
+socketio = SocketIO(app, async_mode="eventlet") 
+
+# SSL
+ssl._create_default_https_context = ssl._create_unverified_context
+ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+ssl_context.check_hostname = False
+ssl_context.verify_mode = ssl.CERT_NONE
+ssl_context.load_cert_chain(certfile="./cert.pem", keyfile="./key.pem")
 
 API_KEY = os.getenv('API_KEY')
 
 # Dummy user db for dev
+# TODO: Create user database with hashing
 users = {
     "username": "password"
 }
@@ -171,6 +186,14 @@ def predict_emotion():
 
 if __name__ == '__main__':
     #app.run(debug=True, ssl_context=('./cert.pem', './key.pem'))
-    socketio.run(app, debug=True, host="0.0.0.0", port=5000, ssl_context=('./cert.pem', './key.pem'))
+    # socketio.run(app, debug=True, host="0.0.0.0", port=5000, ssl_context=('./cert.pem', './key.pem'))
     #If not using with ssl use this instead: 
     # app.run(debug=True)
+    listener = eventlet.listen(("0.0.0.0", 5000))
+    secure_listener = eventlet.wrap_ssl(listener, certfile="./cert.pem", keyfile="./key.pem", server_side=True)
+
+    print("Server running with SSL on port 5000...")
+    print(f'PID : {os.getpid()}')
+
+    # Use Eventlet's WSGI server to serve Flask with SSL
+    eventlet.wsgi.server(secure_listener, app)

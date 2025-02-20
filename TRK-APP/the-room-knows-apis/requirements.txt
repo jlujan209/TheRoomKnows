@@ -6,3 +6,4 @@ flask-socketio
 tensorflow
 numpy
 pillow
+eventlet
