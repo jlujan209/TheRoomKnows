@@ -17,3 +17,4 @@ openai
 eng-spacysentiment
 # After installing spacy, run the following to download the model:
 # python -m spacy download en_core_web_sm
+reportlab

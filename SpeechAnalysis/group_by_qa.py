@@ -79,6 +79,9 @@ def create_qa_objects(openai_response: dict) -> List[QAObjects]:
     qa_pairs = response.split("\n")
     QAs = []
     for qa_pair in qa_pairs:
+        if not qa_pair.strip():
+            continue
+        print(f"qa_pair: {qa_pair}")
         question, answer = qa_pair.split("|")
         qa_object = QAObjects(question=question, answer=answer)
         QAs.append(qa_object)
@@ -116,48 +119,48 @@ def clean_with_openai(input_file: str, output_file: str, model: str = "gpt-4o-mi
 
     return clean_text
 
+def perform_sentiment_analysis(openai_response: dict):
+    '''
+    takes the openai response and performs sentiment analysis on each question-answer pair.
+    returns a dictionary with the counts of positive, negative, and neutral sentiments.
+    '''
+    sentiment_analyzer = sentiment.load()
+    qas = create_qa_objects(openai_response)
+    counts = {
+        "positive": 0,
+        "negative": 0,
+        "neutral": 0
+    }
+
+    for qa in qas:
+        
+        sent = qa.analyze_sentiment(sentiment_analyzer).cats
+        if sent["positive"] >= 0.75:
+            counts["positive"] += 1
+        elif sent["negative"] >= 0.75:
+            counts["negative"] += 1
+        else:
+            counts["neutral"] += 1
+    
+    return counts
+
     
 if __name__ == "__main__":
     input_file = "test.json"
     output_file = "output-doc-pat.json"
     sentiment_output_file = "sentiment-doc-pat.txt"
     sentiment_analyzer = sentiment.load()
-    
-    '''
-    doc = sentiment_analyzer("I love you")
-    print(doc.cats)
    
     openai_response = query_openai(input_file, output_file)
-    
+    '''
     with open(output_file, "r") as f:
         openai_response = json.load(f)
-       
-    qas = create_qa_objects(openai_response)
-    with open(sentiment_output_file, "w") as f:
-        f.write("")
-
-    counts = {
-        "positive": 0,
-        "negative": 0,
-        "neutral": 0
-    }
-    for qa in qas:
-        with open(sentiment_output_file, "a") as f:
-            sent = qa.analyze_sentiment(sentiment_analyzer).cats
-            f.write(f"{qa.get_question_and_answer()}\n")
-            f.write(f"{sent}\n")
-            if sent["positive"] >= 0.75:
-                counts["positive"] += 1
-            elif sent["negative"] >= 0.75:
-                counts["negative"] += 1
-            else:
-                counts["neutral"] += 1
+    '''
+    counts = perform_sentiment_analysis(openai_response)
+    print(f"Counts: {counts}")
     with open(sentiment_output_file, "a") as f:
         f.write(f"FINAL COUNTS: {counts}\n")
-    '''
 
-    clean_text = clean_with_openai(input_file, output_file)
-    with open("cleaned_by_chat.txt", "w") as f:
-        f.write(clean_text.to_dict()["choices"][0]["message"]["content"])
+    
     
             

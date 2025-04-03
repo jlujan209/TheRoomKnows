@@ -1,5 +1,13 @@
 import eventlet
+import sys
+import os
+import threading
 eventlet.monkey_patch()
+
+sys.path.append(os.path.abspath("../../SpeechAnalysis"))
+sys.path.append(os.path.abspath("../../FacialAnalysis"))
+from FacialAnalysis import facial_analysis
+from SpeechAnalysis import capture_audio, whisper_test
 
 from flask import Flask, request, jsonify, make_response
 from flask_cors import CORS
@@ -13,6 +21,8 @@ import base64
 import os
 import cv2
 import ssl
+
+from SpeechAnalysis import sentiment
 
 import eventlet.wsgi
 import eventlet.greenio.base
@@ -183,6 +193,35 @@ def predict_emotion():
         return jsonify({"error": "Failed to predict emotion"})
 
     return jsonify({"emotion": emotion, "confidence": float(np.max(prediction))})
+
+@app.route('/start/analysis', method=['GET'])
+def capture_data_and_analyze():
+    stop_event = threading.Event()
+
+    audio_devices = capture_audio.list_audio_devices()
+    print("Select the microphone device to use: ", end='')
+    for idx, dev in enumerate(audio_devices):
+        print(f"{idx}: {dev['name']} (Max Channels: {dev['max_input_channels']})")
+    dev_index = input()
+    microphone = audio_devices[int(dev_index)]
+    channels = microphone["max_input_channels"]
+
+    image_thread = threading.Thread(target=facial_analysis.main, args=(stop_event,))
+    audio_thread = threading.Thread(target=capture_audio.record_audio, args=("SpeechAnalysis/output.wav", stop_event, microphone["name"], channels, 44100))
+
+    image_thread.start()
+    audio_thread.start()
+
+    # the stop event should be another API request
+    input("Press enter to stop recording and image collection")
+    stop_event.set()
+
+    image_thread.join()
+    audio_thread.join()
+
+    whisper_test.transcribe("SpeechAnalysis/output.wav", "SpeechAnalysis/output.json")
+
+    print("DONE")
 
 if __name__ == '__main__':
     #app.run(debug=True, ssl_context=('./cert.pem', './key.pem'))
