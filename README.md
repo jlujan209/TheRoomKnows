@@ -20,6 +20,10 @@ pip install -r requirements.txt
 
 First you create the environment, then you acivate it, and finally, install all the libraries we need. If you ever need to add a library, add it to the `requirements.txt` file. You should also make sure the environment is activated whenever you want to run the code. VScode usually does this for you, but sometimes it doesn't.
 
-## Marv
+## Sponsor: Dr. Marvin Slepian
 
 <img src="https://www.princeton.edu/~paw/web_exclusives/alumni_spotlight/alumni_spotlight_pics/as120804Slepian77.jpg">
+
+## Team 25041
+
+<img src='./team25041.webp'>
