@@ -7,3 +7,8 @@ tensorflow
 numpy
 pillow
 eventlet
+opencv-python
+sounddevice
+soundfile
+openai-whisper
+eng-spacysentiment

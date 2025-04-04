@@ -2,12 +2,8 @@ import eventlet
 import sys
 import os
 import threading
+import requests
 eventlet.monkey_patch()
-
-sys.path.append(os.path.abspath("../../SpeechAnalysis"))
-sys.path.append(os.path.abspath("../../FacialAnalysis"))
-from FacialAnalysis import facial_analysis
-from SpeechAnalysis import capture_audio, whisper_test
 
 from flask import Flask, request, jsonify, make_response
 from flask_cors import CORS
@@ -21,11 +17,18 @@ import base64
 import os
 import cv2
 import ssl
-
-from SpeechAnalysis import sentiment
+import tempfile
+from datetime import datetime
+import json
 
 import eventlet.wsgi
 import eventlet.greenio.base
+
+import sounddevice as sd
+import soundfile as sf
+import openai
+import whisper
+from group_by_qa import query_openai, 
 
 # Flask app with CORS enabled
 app = Flask(__name__)
@@ -49,7 +52,6 @@ ssl._create_default_https_context = ssl._create_unverified_context
 ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
 ssl_context.check_hostname = False
 ssl_context.verify_mode = ssl.CERT_NONE
-ssl_context.load_cert_chain(certfile="./cert.pem", keyfile="./key.pem")
 
 API_KEY = os.getenv('API_KEY')
 
@@ -59,9 +61,30 @@ users = {
     "username": "password"
 }
 
+# stuff skyler added for emotion and audio stuff
+current_audio_file = None
+current_file_lock = threading.Lock()
+transcripts = []
+emotions = {
+        "Angry": 0,
+        "Happy": 0,
+        "Neutral": 0,
+        "Sad": 0,
+        "Surprise": 0
+    }
+OPENAI_WHISPER_ENDPOINT = 'https://api.openai.com/v1/audio/transcriptions'
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+openai.api_key = OPENAI_API_KEY
+TEMPDIR = os.getenv('TEMP_DIR', '/tmp')
+model = whisper.load_model('base')
+
 # Emotion Detection Model
 ed_model = tf.keras.models.load_model("emotion_detection.keras")
 emotion_labels = ["Angry", "Happy", "Neutral", "Sad", "Surprise"]
+
+@app.route('/')
+def index():
+    return jsonify({"message": "Welcome to The Room Knows API"}), 200
 
 @app.route('/login', methods=['POST'])
 def login():
@@ -194,34 +217,156 @@ def predict_emotion():
 
     return jsonify({"emotion": emotion, "confidence": float(np.max(prediction))})
 
-@app.route('/start/analysis', method=['GET'])
-def capture_data_and_analyze():
-    stop_event = threading.Event()
+@app.route("/start-session")
+def start():
+    start_session()
 
-    audio_devices = capture_audio.list_audio_devices()
-    print("Select the microphone device to use: ", end='')
-    for idx, dev in enumerate(audio_devices):
-        print(f"{idx}: {dev['name']} (Max Channels: {dev['max_input_channels']})")
-    dev_index = input()
-    microphone = audio_devices[int(dev_index)]
-    channels = microphone["max_input_channels"]
+    return jsonify({"status": "Session started"})
 
-    image_thread = threading.Thread(target=facial_analysis.main, args=(stop_event,))
-    audio_thread = threading.Thread(target=capture_audio.record_audio, args=("SpeechAnalysis/output.wav", stop_event, microphone["name"], channels, 44100))
+@app.route("/stop-session")
+def stop():
+    final_transcripts, emotions = stop_session()
+    with open("transcripts.txt", "w") as f:
+        for transcript in final_transcripts:
+            f.write(transcript + "\n")
+    with open("emotions.json", "w") as f:
+        json.dump(emotions, f)
+    
+    return jsonify({"status": "Session stopped", "transcripts": final_transcripts})
 
-    image_thread.start()
-    audio_thread.start()
+def record_audio():
+    global current_audio_file
 
-    # the stop event should be another API request
-    input("Press enter to stop recording and image collection")
-    stop_event.set()
+    device = sd.query_devices(kind='input')
+    mic = device['name']
 
-    image_thread.join()
-    audio_thread.join()
+    while session_active:
+        with tempfile.NamedTemporaryFile(dir='./tmp', delete=False, suffix=".wav") as tmpfile:
+            filename = tmpfile.name
 
-    whisper_test.transcribe("SpeechAnalysis/output.wav", "SpeechAnalysis/output.json")
+        current_audio_file = sf.SoundFile(filename, mode='w', samplerate=44100, channels=1)
 
-    print("DONE")
+        def callback(indata, frames, time_info, status):
+            if not session_active:
+                raise sd.CallbackStop()
+            with current_file_lock:
+                current_audio_file.write(indata)
+
+        with sd.InputStream(samplerate=44100, channels=1, device=mic, callback=callback):
+            print(f"[AUDIO] Recording to {filename}")
+            while session_active:
+                eventlet.sleep(0.1)
+
+        print("[AUDIO] Recording stopped.")
+
+def transcribe_audio_file(filepath):
+    print(f"[TRANSCRIBE] Sending {filepath} to OpenAI...")
+    try:
+        if not os.path.exists(filepath):
+            print(f"[TRANSCRIBE] File does not exist: {filepath}")
+            return
+        print(f"[TRANSCRIBE] File exists: {filepath}")
+        if not os.path.isfile(filepath):
+            print(f"[TRANSCRIBE] Filepath is invalid or not a file: {filepath}")
+            return
+            
+        response = model.transcribe(filepath)
+        # Save the response to a file for debugging
+        with open("response.json", "w") as f:
+            json.dump(response, f)
+        transcription = response['text']
+        print(f"[TRANSCRIBE] Result: {transcription}")
+        transcripts.append(transcription)
+    except requests.exceptions.RequestException as e:
+        print(f"[TRANSCRIBE] HTTP request failed: {e}")
+    except Exception as e:
+        print(f"[TRANSCRIBE] Failed to transcribe: {e}")
+    finally:
+        if os.path.exists(filepath):
+            try:
+                os.remove(filepath)
+            except Exception as e:
+                print(f"[TRANSCRIBE] Failed to remove file: {e}")
+
+def rotate_and_transcribe():
+    global current_audio_file
+
+    while session_active:
+        eventlet.sleep(300)  # Wait 5 minutes
+        if not session_active:
+            break
+
+        with current_file_lock:
+            old_file = current_audio_file.name
+            current_audio_file.close()
+
+        # Spawn transcription task
+        eventlet.spawn(transcribe_audio_file, old_file)
+
+        # Create new file for continued recording
+        with tempfile.NamedTemporaryFile(dir='./tmp', delete=False, suffix=".wav") as tmpfile:
+            new_filename = tmpfile.name
+
+        with current_file_lock:
+            current_audio_file = sf.SoundFile(new_filename, mode='w', samplerate=44100, channels=1)
+
+def emotion_analysis():
+    print("[EMOTION] Starting emotion analysis...")
+    cur_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    os.makedirs("photos", exist_ok=True)
+    os.makedirs(f"photos/{cur_time}", exist_ok=True)
+    camera = cv2.VideoCapture(0)  # Open the camera
+    if not camera.isOpened():
+        print("Error: Could not access the camera.")
+        return
+    while session_active:
+        print(emotions)
+        ret, frame = camera.read()
+        if not ret:
+            print("Failed to capture image.")
+            continue
+        try: 
+            image = cv2.resize(frame, (224, 224))
+            image = image / 255.0
+            image = np.expand_dims(image, axis=0)
+
+            prediction = ed_model.predict(image)
+            emotion = emotion_labels[np.argmax(prediction)]
+            print(f"Emotion detected: {emotion}")
+            # keep counds
+            emotions[emotion] += 1
+            # TODO: save the emotion to the db or something?
+
+        except Exception as e:
+            print(f"[EMOTION] Failed to predict emotion: {e}")
+
+        eventlet.sleep(5)  # Sleep for a second before capturing the next image
+
+def start_session():
+    global session_active, transcripts
+    session_active = True
+    transcripts = []
+    eventlet.spawn(record_audio)
+    eventlet.spawn(rotate_and_transcribe)
+    eventlet.spawn(emotion_analysis)
+
+def stop_session():
+    global session_active
+    session_active = False
+
+    # Finalize last chunk
+    with current_file_lock:
+        final_file = current_audio_file.name
+        current_audio_file.close()
+
+    transcribe_audio_file(final_file)  # Send last partial chunk
+    all_text = " ".join(transcripts)
+
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    with open(f"emotions_{timestamp}.json", "w") as f:
+        json.dump(emotions, f)
+
+    return all_text, emotions
 
 if __name__ == '__main__':
     #app.run(debug=True, ssl_context=('./cert.pem', './key.pem'))
@@ -229,10 +374,9 @@ if __name__ == '__main__':
     #If not using with ssl use this instead: 
     # app.run(debug=True)
     listener = eventlet.listen(("0.0.0.0", 5000))
-    secure_listener = eventlet.wrap_ssl(listener, certfile="./cert.pem", keyfile="./key.pem", server_side=True)
 
     print("Server running with SSL on port 5000...")
     print(f'PID : {os.getpid()}')
 
     # Use Eventlet's WSGI server to serve Flask with SSL
-    eventlet.wsgi.server(secure_listener, app)
+    eventlet.wsgi.server(listener, app)
