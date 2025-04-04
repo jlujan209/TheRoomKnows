@@ -7,10 +7,12 @@ import openai
 import json
 from dotenv import load_dotenv
 import os
-# import eng_spacysentiment as sentiment
+import json
+import eng_spacysentiment as sentiment
 
 load_dotenv()
-KEY = os.getenv("OPENAI_KEY")
+KEY = os.getenv("OPENAI_API_KEY")
+print(f"KEY: {KEY}")
 
 class QAObjects():
     def __init__(self, question, answer):
@@ -28,7 +30,7 @@ class QAObjects():
     def __str__(self):
         return f"{self.question}\n{self.answer}"
 
-def query_openai(input_file: str, output_file: str, model: str = "gpt-4o-mini") -> dict:
+def query_openai(input_file: str, output_file: str = None, model: str = "gpt-4o-mini") -> dict:
     '''
     Query the OpenAI API to split a conversation into question-answer pairs.
 
@@ -49,7 +51,7 @@ def query_openai(input_file: str, output_file: str, model: str = "gpt-4o-mini") 
             text = f.read()
     else:
         # assume text was passed in
-        pass
+        text = input_file
     print(f"text: {text}")
 
     # Define the prompt
@@ -71,8 +73,9 @@ def query_openai(input_file: str, output_file: str, model: str = "gpt-4o-mini") 
     )
 
     response_dict = diarized_text.to_dict()
-    with open(output_file, "w") as f:
-        json.dump(response_dict, f)
+    if output_file is not None:
+        with open(output_file, "w") as f:
+            json.dump(response_dict, f)
 
     return response_dict
 
@@ -133,9 +136,7 @@ def perform_sentiment_analysis(openai_response: dict):
         "negative": 0,
         "neutral": 0
     }
-
     for qa in qas:
-        
         sent = qa.analyze_sentiment(sentiment_analyzer).cats
         if sent["positive"] >= 0.75:
             counts["positive"] += 1
@@ -146,24 +147,44 @@ def perform_sentiment_analysis(openai_response: dict):
     
     return counts
 
-def perform_frequency_analysis(text: str):
+def perform_frequency_analysis(text: dict):
     '''
     given the text from whisperai, perform frequency analysis using the assistant elyssa made
     '''
-    response = openai.ChatCompletion.create(
-        model="asst_MibSueXcICudoex0FSwKmKSB",
-        messages=[
-            {
-                "tole": "user",
-                "content": text
-            }
-        ]
+    openai.organization = os.getenv("OPENAI_ORG")
+    openai.api_key = KEY
+    openai.project = os.getenv("OPENAI_PROJ")
+    ASSISTANT_ID = os.getenv("OPENAI_ASST")
+    thread = openai.beta.threads.create()
+    openai.beta.threads.messages.create(
+        thread_id=thread.id,
+        role="user",
+        content=text,
     )
-    response_dict = response.to_dict()
-    print(f"response_dict: {response_dict}")
-    return response_dict
-    
 
+    run = openai.beta.threads.runs.create(
+        thread_id=thread.id,
+        assistant_id=ASSISTANT_ID,
+    )
+    
+    while True:
+        run = openai.beta.threads.runs.retrieve(
+            thread_id=thread.id,
+            run_id=run.id,
+        )
+        if run.status in ["completed", "failed", "cancelled"]:
+            break
+
+    messages = openai.beta.threads.messages.list(thread_id=thread.id)
+    response = None
+    for m in reversed(messages.data):
+        if m.role == "assistant":
+            print(f"Assistant: {m.content}")
+            response = m.content[0].dict()['text']['value']
+            break
+    clean_json_str = response.strip('` \n')[4:]  # removes "```json\\n"
+    data = json.loads(clean_json_str)
+    return data
     
 if __name__ == "__main__":
     '''
@@ -182,7 +203,9 @@ if __name__ == "__main__":
     with open(sentiment_output_file, "a") as f:
         f.write(f"FINAL COUNTS: {counts}\n")
     '''
-    perform_frequency_analysis("You're not a asking me this, but if there are really young people, I'll get all my stuff into your Stop, and I was like, you've always seen. Hi there, I'm Dr. Bella. Would you mind confirming your name in J.D.A.P. before we get started? Kevin Bacon, July 8th, 1958. Thank you, Mr. Bacon. What brings you into the clinic today? I have been having this horrible cough that just won't go away. I'm sorry to hear that. When did this cough start? About a week ago, it really started to get annoying. I see. And were you doing anything when the cough first started? No, not really. I was just at work and noticed a tickle in the back of my throat. And then I started coughing and haven't stopped since. Okay, and is your cough consistent throughout the day or does it seem to come and go? No, I would say it's consistent throughout the day. From the moment I get out of bed in the morning and stop coughing. Does anything seem to make your cough better or worse? I did notice that when I was on my morning run on the other day, I began cough really badly and I had to stop. Okay, so exercise makes it worse. Does anything make it better? No, not really. Okay, and is this cough dry or are you coughing at the ucus? Yeah, every now and then I would cough at some ucus. Okay, any pain or tightness in your chest? Yeah, I guess I do feel some tightness in my chest before I cough, but no pain really. All right, and have you been wheezing at all? Yes, actually I have noticed that when I lay down to go to bed at night, I start wheezing. Got it. And have you felt short of breath recently? No, I wouldn't say short of breath, just the occasional tightness in my chest. Any kind of fever, headache or chills? No, that I've noticed. Any fatigue or unintentional weight loss? Nope. Okay, any swelling or lumps around your neck or throat? Nope. Any recent infections or illnesses? No, I would say being good health lately. That's good to hear. Have you ever had a cough like this in the past? Um, yeah, I guess when I was a kid, I had asthma and I guess some, I would get coughs like this once every nine days, but I haven't had it like this in years. Okay, did you receive any kind of treatment? Yes, I saw a paul monologist who gave me some steroid, but I was told I could stop taking them so I did. I see. Let me go ahead and perform a physical exam.")
-    
+    x = perform_frequency_analysis("You're not a asking me this, but if there are really young people, I'll get all my stuff into your Stop, and I was like, you've always seen. Hi there, I'm Dr. Bella. Would you mind confirming your name in J.D.A.P. before we get started? Kevin Bacon, July 8th, 1958. Thank you, Mr. Bacon. What brings you into the clinic today? I have been having this horrible cough that just won't go away. I'm sorry to hear that. When did this cough start? About a week ago, it really started to get annoying. I see. And were you doing anything when the cough first started? No, not really. I was just at work and noticed a tickle in the back of my throat. And then I started coughing and haven't stopped since. Okay, and is your cough consistent throughout the day or does it seem to come and go? No, I would say it's consistent throughout the day. From the moment I get out of bed in the morning and stop coughing. Does anything seem to make your cough better or worse? I did notice that when I was on my morning run on the other day, I began cough really badly and I had to stop. Okay, so exercise makes it worse. Does anything make it better? No, not really. Okay, and is this cough dry or are you coughing at the ucus? Yeah, every now and then I would cough at some ucus. Okay, any pain or tightness in your chest? Yeah, I guess I do feel some tightness in my chest before I cough, but no pain really. All right, and have you been wheezing at all? Yes, actually I have noticed that when I lay down to go to bed at night, I start wheezing. Got it. And have you felt short of breath recently? No, I wouldn't say short of breath, just the occasional tightness in my chest. Any kind of fever, headache or chills? No, that I've noticed. Any fatigue or unintentional weight loss? Nope. Okay, any swelling or lumps around your neck or throat? Nope. Any recent infections or illnesses? No, I would say being good health lately. That's good to hear. Have you ever had a cough like this in the past? Um, yeah, I guess when I was a kid, I had asthma and I guess some, I would get coughs like this once every nine days, but I haven't had it like this in years. Okay, did you receive any kind of treatment? Yes, I saw a paul monologist who gave me some steroid, but I was told I could stop taking them so I did. I see. Let me go ahead and perform a physical exam.")
+    print(x)
+    with open("output.json", "w") as f:
+        json.dump(x, f)
     
             

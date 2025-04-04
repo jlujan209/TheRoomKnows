@@ -10,7 +10,7 @@ from flask_cors import CORS
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, JWTManager
 from flask_socketio import SocketIO, emit
 from dotenv import load_dotenv
-import tensorflow as tf
+import tensorflow
 import numpy as np
 import sqlite3
 import base64
@@ -28,7 +28,7 @@ import sounddevice as sd
 import soundfile as sf
 import openai
 import whisper
-from group_by_qa import query_openai, 
+from group_by_qa import query_openai, perform_sentiment_analysis, perform_frequency_analysis
 
 # Flask app with CORS enabled
 app = Flask(__name__)
@@ -79,7 +79,8 @@ TEMPDIR = os.getenv('TEMP_DIR', '/tmp')
 model = whisper.load_model('base')
 
 # Emotion Detection Model
-ed_model = tf.keras.models.load_model("emotion_detection.keras")
+print(tensorflow.__version__)
+ed_model = tensorflow.keras.models.load_model("emotion_detection.keras")
 emotion_labels = ["Angry", "Happy", "Neutral", "Sad", "Surprise"]
 
 @app.route('/')
@@ -361,6 +362,19 @@ def stop_session():
 
     transcribe_audio_file(final_file)  # Send last partial chunk
     all_text = " ".join(transcripts)
+    print(f"[TRANSCRIBE] All text: {all_text}")
+    # run frequency analysis on the text
+    frequency_analysis = perform_frequency_analysis(all_text)
+    # write the frequency analysis to a file
+    with open("frequency_analysis.json", "w") as f:
+        json.dump(frequency_analysis, f)
+    # get qa pairs for sentiment analysis
+    qas = query_openai(all_text)
+    # perform sentiment analysis on the text
+    sentiment_analyzer = perform_sentiment_analysis(qas)
+    # write the sentiment analysis to a file
+    with open("sentiment_analysis.json", "w") as f:
+        json.dump(sentiment_analyzer, f)
 
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     with open(f"emotions_{timestamp}.json", "w") as f:
@@ -377,6 +391,8 @@ if __name__ == '__main__':
 
     print("Server running with SSL on port 5000...")
     print(f'PID : {os.getpid()}')
+
+    os.makedirs("tmp", exist_ok=True)
 
     # Use Eventlet's WSGI server to serve Flask with SSL
     eventlet.wsgi.server(listener, app)
