@@ -21,7 +21,7 @@ function EditPage() {
     useEffect(() => {
         const fetchPatient = async () => {
             try {
-                const response = await fetch(`https://localhost:5000/patients/search?patient_id=${id}`, {
+                const response = await fetch(`http://localhost:5000/patients/search?patient_id=${id}`, {
                     method: "GET",
                     headers: {
                         "Content-Type": "application/json",
@@ -79,7 +79,7 @@ function EditPage() {
         setError(null);
 
         try {
-            const response = await fetch(`https://localhost:5000/patients/edit?patient_id=${id}`, {
+            const response = await fetch(`http://localhost:5000/patients/edit?patient_id=${id}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',

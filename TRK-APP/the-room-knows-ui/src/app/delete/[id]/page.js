@@ -17,7 +17,7 @@ function DeletePage() {
   useEffect(() => {
     const fetchPatients = async () => {
       try {
-        const response = await fetch(`https://localhost:5000/patients/search?patient_id=${id}`, {
+        const response = await fetch(`http://localhost:5000/patients/search?patient_id=${id}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -25,7 +25,7 @@ function DeletePage() {
           }
         });
         if (!response.ok) {
-          throw new Error(`HTTPS error! Status: ${response.status}`);
+          throw new Error(`http error! Status: ${response.status}`);
         }
         const data = await response.json();
         setFirstName(data.patient.patient_first_name);
@@ -45,7 +45,7 @@ function DeletePage() {
   const handleDelete = async () => {
     setDeleting(true);
     try {
-      const response = await fetch(`https://localhost:5000/patients/delete?patient_id=${id}`, {
+      const response = await fetch(`http://localhost:5000/patients/delete?patient_id=${id}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',

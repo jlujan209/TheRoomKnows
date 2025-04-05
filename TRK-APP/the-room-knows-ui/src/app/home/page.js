@@ -19,7 +19,7 @@ function Home() {
   useEffect(() => {
     const fetchPatients = async () => {
       try {
-        const response = await fetch("https://localhost:5000/patients/all", {
+        const response = await fetch("http://localhost:5000/patients/all", {
           method: "GET",
           headers: {
             "Content-Type": "application/json",

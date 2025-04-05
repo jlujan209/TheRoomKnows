@@ -89,9 +89,6 @@ def index():
 
 @app.route('/login', methods=['POST'])
 def login():
-    api_key = request.headers.get('API-Key')
-    if api_key != API_KEY:
-        return jsonify({"error": "Unauthorized"}), 401
     data = request.json
     username = data.get("username")
     password = data.get("password")
@@ -106,9 +103,6 @@ def login():
 
 @app.route('/patients/all', methods=['GET'])
 def get_all_patients(): 
-    api_key = request.headers.get('API-Key')
-    if api_key != API_KEY:
-        return jsonify({"error": "Unauthorized"}), 401
     cursor.execute('''SELECT * FROM patient_data;''')
     patients = cursor.fetchall()
     patients_list = [dict(row) for row in patients]
@@ -116,9 +110,6 @@ def get_all_patients():
 
 @app.route('/patients/new', methods=['POST'])
 def add_new_patient():
-    api_key = request.headers.get('API_Key')
-    if api_key != API_KEY:
-        return jsonify({"error": "Unauthorized"}), 401
     
     data=request.get_json()
     first_name = data.get("patient_first_name")
@@ -138,9 +129,6 @@ def add_new_patient():
 
 @app.route('/patients/search', methods=['GET'])
 def get_patient():
-    api_key = request.headers.get('API-Key')
-    if api_key != API_KEY:
-        return jsonify({"error": "Unauthorized"}), 401
     
     id=request.args.get('patient_id')
     cursor.execute('''SELECT * FROM patient_data WHERE patient_id=?''', (id,))
@@ -150,14 +138,10 @@ def get_patient():
 
 @app.route('/patients/delete', methods=['DELETE'])
 def delete_patient():
-    api_key = request.headers.get('API-Key')
-    if api_key != API_KEY:
-        response = make_response(jsonify({"error": "Unauthorized"}), 401)
-    else:
-        id = request.args.get('patient_id')
-        cursor.execute('''DELETE FROM patient_data WHERE patient_id=?''', (id,))
-        conn.commit()
-        response = make_response(jsonify({"message": "Successful Deletion"}), 201)
+    id = request.args.get('patient_id')
+    cursor.execute('''DELETE FROM patient_data WHERE patient_id=?''', (id,))
+    conn.commit()
+    response = make_response(jsonify({"message": "Successful Deletion"}), 201)
     
     # Set headers
     response.headers['Content-Type'] = 'application/json'
@@ -168,9 +152,6 @@ def delete_patient():
 
 @app.route('/patients/edit', methods=['PUT'])
 def edit_patient():
-    api_key = request.headers.get('API-Key')
-    if api_key != API_KEY:
-        return jsonify({"error": "Unauthorized"}), 401
     
     data=request.get_json()
     first_name = data.get('patient_first_name')

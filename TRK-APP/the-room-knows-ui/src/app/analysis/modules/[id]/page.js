@@ -20,7 +20,7 @@ const WebcamCapture = () => {
       const imageSrc = webcamRef.current.getScreenshot();
       
       try {
-        const res = await axios.post("https://localhost:5000/analysis/emotion-detection", {
+        const res = await axios.post("http://localhost:5000/analysis/emotion-detection", {
           image: imageSrc.split(",")[1],
         });
         setResponse(res.data);
