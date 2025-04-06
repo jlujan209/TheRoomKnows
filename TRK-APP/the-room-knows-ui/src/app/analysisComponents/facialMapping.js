@@ -2,17 +2,15 @@
 
 import React, { useRef, useState, useEffect } from "react";
 import Webcam from "react-webcam";
-import axios from "axios";
 import "bootstrap/dist/css/bootstrap.min.css";
-import withAuth from "../../../hoc/withAuth";
-import { useRouter } from "next/navigation";
 
-const FacialMapping = () => {
+const FacialMapping = ({ patient_name }) => {
 
     const [ loading, setLoading ] = useState(false);
     const [ response, setResponse ] = useState(null);
     const [ error, setError ] = useState(null);
     const [ annotatedImage, setAnnotatedImage ] = useState(null);
+    const webcamRef = useRef(null);
 
     const handleCapture = async () => {
         setLoading(true);
@@ -26,7 +24,7 @@ const FacialMapping = () => {
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({ name: "patient"})
+                body: JSON.stringify({ name: patient_name})
             });
 
             const data = await res.json();
@@ -46,7 +44,16 @@ const FacialMapping = () => {
 
     return (
         <div className="p-4">
-      <h1 className="text-xl font-bold mb-4">Facial Analysis via Webcam</h1>
+      <h1 className="text-xl font-bold mb-4">Facial Analysis for {patient_name}</h1>
+      <div className="d-flex justify-content-center">
+         <Webcam
+           audio={false}
+           ref={webcamRef}
+           screenshotFormat="image/png"
+           className="border rounded"
+           style={{ width: "100%", maxWidth: "500px" }}
+         />
+       </div>
       <button
         onClick={handleCapture}
         disabled={loading}
@@ -79,3 +86,5 @@ const FacialMapping = () => {
     </div>
     );
 }
+
+export default FacialMapping;

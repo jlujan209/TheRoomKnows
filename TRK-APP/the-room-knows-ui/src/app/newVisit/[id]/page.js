@@ -66,12 +66,8 @@ function NewVisitPage() {
 
     setFormError(""); 
 
-    // TODO: Will need to change this once the other modules have been integrated.
-    if (selectedOptions["EmotionDetection"]) {
-      router.push(`/analysis/modules/${'0'/*Placeholder for visit id*/}`); // TODO: Need to change once I implement the visit Id 
-    } else {
-      setFormError(`Module(s) not implemented yet`);
-    }
+    router.push(`/analysis/modules/${id}?emotion-detection=${selectedOptions["EmotionDetection"]}&facial-mapping=${selectedOptions["FacialMapping"]}&motion-analysis=${selectedOptions["MotionAnalysis"]}&speech-analysis=${selectedOptions["SpeechAnalysis"]}&patient-name=${patientData?.patient_first_name}+${patientData?.patient_last_name}`);
+  
   };
 
   if (loading) {

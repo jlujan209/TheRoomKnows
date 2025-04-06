@@ -5,9 +5,12 @@ import Webcam from "react-webcam";
 import axios from "axios";
 import "bootstrap/dist/css/bootstrap.min.css";
 import withAuth from "../../../hoc/withAuth";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import FacialMapping from "../../../analysisComponents/facialMapping";
+import MotionAnalysis from "../../../analysisComponents/motionAnalysis";
+import SpeechEmotionAnalysis from "../../../analysisComponents/speechEmotionAnalysis";
 
-const WebcamCapture = () => {
+const AnalysisPage = () => {
   const [response, setResponse] = useState(null);
   const [error, setError] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
@@ -15,26 +18,53 @@ const WebcamCapture = () => {
   let intervalRef = useRef(null);
   const router = useRouter();
 
-  const captureImage = async () => {
-    if (webcamRef.current) {
-      const imageSrc = webcamRef.current.getScreenshot();
-      
-      try {
-        const res = await axios.post("http://localhost:5000/analysis/emotion-detection", {
-          image: imageSrc.split(",")[1],
-        });
-        setResponse(res.data);
-      } catch (err) {
-        setError(err.response?.data?.error || "An error occurred");
-      }
-    }
+  
+  const searchParams = useSearchParams();
+  
+  const patient_name = searchParams.get('patient-name');
+  
+  const modules = {
+    emotionDetection: searchParams.get('emotion-detection') === 'true'? 1:0,
+    facialMapping: searchParams.get('facial-mapping') === 'true'? 1:0,
+    motionAnalysis: searchParams.get('motion-analysis') === 'true'? 1:0,
+    speechAnalysis: searchParams.get('speech-analysis') === 'true'? 1:0,
   };
 
+  const selectedModules = [];
+
+  if (modules.motionAnalysis) selectedModules.push("motion");
+  if (modules.facialMapping) selectedModules.push("facial");
+  if (modules.emotionDetection) selectedModules.push("emotion");
+  if (modules.speechAnalysis) selectedModules.push("speech");
+
+  const [currentModuleIndex, setCurrentModuleIndex ] = useState(0);
+  const currentModule = selectedModules[currentModuleIndex];
+
+  const handleNextModule = () => {
+    if (currentModuleIndex < selectedModules.length - 1) {
+      setCurrentModuleIndex((prev) => prev + 1);
+    } else {
+      setAnalyzing(false);
+    }
+  }
+
+  const renderCurrentModule = () => {
+    switch (currentModule) {
+      case "motion":
+      case "facial":
+        return <FacialMapping patient_name={patient_name} onComplete={handleNextModule} />
+      case "emotion":
+      case "speech":
+        return <SpeechEmotionAnalysis patient_name={patient_name} onComplete={handleNextModule}/>
+      default:
+        return <p>All modules completed.</p>
+    }
+  }
+  
   const startAnalysis = () => {
     setAnalyzing(true);
     setError("");
     setResponse(null);
-    intervalRef.current = setInterval(captureImage, 5000);
   };
 
   const stopAnalysis = () => {
@@ -46,65 +76,21 @@ const WebcamCapture = () => {
     return () => clearInterval(intervalRef.current);
   }, []);
 
+
+
   return (
     <div className="container mt-4 text-center">
-      <h2 className="mb-3">Real-Time Emotion Detection</h2>
-      <div className="d-flex justify-content-center">
-        <Webcam
-          audio={false}
-          ref={webcamRef}
-          screenshotFormat="image/png"
-          className="border rounded"
-          style={{ width: "100%", maxWidth: "500px" }}
-        />
-      </div>
-
-      <div className="d-flex justify-content-center gap-3 mt-4">
-        <button 
-        type="button" 
-        onClick={() => router.back()} 
-        className="btn btn-secondary"
-        disabled={analyzing}
-        >
-          Cancel
+      <h2 className="mb-3">Analysis for {patient_name}</h2>
+  
+      {!analyzing && (
+        <button className="btn btn-primary" onClick={startAnalysis}>
+          Start Analysis
         </button>
-        <button 
-          className={`btn ${analyzing ? "btn-danger" : "btn-primary"}`}  
-          onClick={analyzing ? stopAnalysis : startAnalysis}
-        >
-          {analyzing ? "Stop Analysis" : "Start Analysis"}
-        </button>
-      </div>
-
-      {error && (
-        <div className="alert alert-danger mt-3">
-          <strong>Error:</strong> {error}
-        </div>
       )}
-
-      {response && (
-        <div className="card mt-3 p-3 text-center shadow-sm">
-          <div className="card-body">
-            <h5 className="card-title">Analysis Results</h5>
-            <p className="card-text">
-              <strong>Emotion:</strong> {response.emotion}
-            </p>
-            <p className="card-text">
-              <strong>Confidence:</strong> {isNaN(response.confidence) ? "N/A" : response.confidence.toFixed(2)}
-            </p>
-            {response.annotated_image && (
-              <img
-                src={`data:image/png;base64,${response.annotated_image}`}
-                alt="Annotated"
-                className="img-fluid mt-2 border rounded"
-                style={{ maxWidth: "100%", maxHeight: "300px" }}
-              />
-            )}
-          </div>
-        </div>
-      )}
+  
+      {analyzing && renderCurrentModule()}
     </div>
   );
 };
 
-export default withAuth(WebcamCapture);
+export default withAuth(AnalysisPage);
