@@ -4,7 +4,7 @@ import React, { useRef, useState, useEffect } from "react";
 import Webcam from "react-webcam";
 import "bootstrap/dist/css/bootstrap.min.css";
 
-const FacialMapping = ({ patient_name }) => {
+const FacialMapping = ({ patient_name, onComplete }) => {
 
     const [ loading, setLoading ] = useState(false);
     const [ response, setResponse ] = useState(null);
@@ -45,15 +45,6 @@ const FacialMapping = ({ patient_name }) => {
     return (
         <div className="p-4">
       <h1 className="text-xl font-bold mb-4">Facial Analysis for {patient_name}</h1>
-      <div className="d-flex justify-content-center">
-         <Webcam
-           audio={false}
-           ref={webcamRef}
-           screenshotFormat="image/png"
-           className="border rounded"
-           style={{ width: "100%", maxWidth: "500px" }}
-         />
-       </div>
       <button
         onClick={handleCapture}
         disabled={loading}
@@ -75,11 +66,15 @@ const FacialMapping = ({ patient_name }) => {
             <strong>Change Value:</strong> {response.change_value.toFixed(4)}
           </p>
           {annotatedImage && (
+            <>
             <img
               src={annotatedImage}
               alt="Annotated Face"
               className="mt-4 max-w-md border rounded"
             />
+
+            <button onClick={onComplete}>Continue</button>
+            </>
           )}
         </div>
       )}

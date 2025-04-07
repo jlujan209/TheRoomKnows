@@ -9,6 +9,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import FacialMapping from "../../../analysisComponents/facialMapping";
 import MotionAnalysis from "../../../analysisComponents/motionAnalysis";
 import SpeechEmotionAnalysis from "../../../analysisComponents/speechEmotionAnalysis";
+import ReportGeneration from "../../../analysisComponents/reportGeneration";
 
 const AnalysisPage = () => {
   const [response, setResponse] = useState(null);
@@ -51,13 +52,14 @@ const AnalysisPage = () => {
   const renderCurrentModule = () => {
     switch (currentModule) {
       case "motion":
+        return <MotionAnalysis patient_name={patient_name} onComplete={handleNextModule} />
       case "facial":
         return <FacialMapping patient_name={patient_name} onComplete={handleNextModule} />
       case "emotion":
       case "speech":
-        return <SpeechEmotionAnalysis patient_name={patient_name} onComplete={handleNextModule}/>
+        return <SpeechEmotionAnalysis patient_name={patient_name} onComplete={handleNextModule} emotion={modules.emotionDetection} speech={modules.speechAnalysis}/>
       default:
-        return <p>All modules completed.</p>
+        return <ReportGeneration patient_name={patient_name} />
     }
   }
   
