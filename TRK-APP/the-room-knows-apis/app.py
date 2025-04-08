@@ -365,6 +365,21 @@ def stop_session():
 
     return all_text, emotions
 
+@app.route('/analysis/emotion-detection/save-results', methods=['POST'])
+def save_results():
+    data = request.get_json()
+    results = data.get('results')
+    patient_name = data.get('patient_name')
+    try:
+        cursor.execute('INSERT INTO patient_analysis (patient_id, analysis_type, value) VALUES (?,?,?)', (patient_name, 'emotion', results,))
+        conn.commit()
+        return jsonify({"message": "successfully saved results for emotion detection."}), 201
+    except Exception as e:
+        return jsonify({"error": e}), 500
+
+
+
+
 @app.route('/analysis/facial-mapping', methods=['POST'])
 def capture_and_process():
     data = request.get_json()
