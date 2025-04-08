@@ -170,12 +170,19 @@ def edit_patient():
 # Web Sockets Routes to handle real-time connections
 @socketio.on('connect')
 def handle_connect():
-    print('Client Connected')
-    emit("connection_response", {"message": "Connected to Websocket"})
+    start_session()
+    print('Session started')
+    emit("connection_response", {"message": "Speech Analysis Session Started"})
 
 @socketio.on('disconnect')
 def handle_disconnect():
-    print('Client disconnected') 
+    final_transcripts, emotions = stop_session()
+    with open("transcripts.txt", "w") as f:
+        for transcript in final_transcripts:
+            f.write(transcript + "\n")
+    with open("emotions.json", "w") as f:
+        json.dump(emotions, f)
+    print("Client Disconnected, Speech Analysis Session has ended")
 
 
 @app.route("/analysis/emotion-detection", methods=["POST"])
@@ -201,22 +208,6 @@ def predict_emotion():
 
     return jsonify({"emotion": emotion, "confidence": float(np.max(prediction))})
 
-@app.route("/start-session")
-def start():
-    start_session()
-
-    return jsonify({"status": "Session started"})
-
-@app.route("/stop-session")
-def stop():
-    final_transcripts, emotions = stop_session()
-    with open("transcripts.txt", "w") as f:
-        for transcript in final_transcripts:
-            f.write(transcript + "\n")
-    with open("emotions.json", "w") as f:
-        json.dump(emotions, f)
-    
-    return jsonify({"status": "Session stopped", "transcripts": final_transcripts})
 
 def record_audio():
     global current_audio_file
