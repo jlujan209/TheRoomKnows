@@ -31,6 +31,8 @@ import soundfile as sf
 import openai
 import whisper
 from group_by_qa import query_openai, perform_sentiment_analysis, perform_frequency_analysis
+import matplotlib.pyplot as plt
+import pandas as pd
 
 # Flask app with CORS enabled
 app = Flask(__name__)
@@ -540,6 +542,100 @@ def save_landmarks(patient_id, landmarks):
     VALUES (?, ?)
     ''', (patient_id, serialized_landmarks))
     conn.commit()
+
+def generate_report(patient_id: str):
+    # get emotion data
+    cursor.execute('''
+    SELECT * FROM patient_analysis WHERE patient_id = ?
+    AND analysis_type = 'emotion'
+    ''', (patient_id))
+    rows = cursor.fetchall()
+    # get the two most recent rows by date
+    rows = sorted(rows, key=lambda x: x['created'], reverse=True)[:2]
+    # check for significant change
+    if len(rows) < 2:
+        emotion_conclusion = "only one visit was recorded, no significant change detected"
+    else:
+        rows[0] = json.loads(rows[0]['value'])
+        rows[1] = json.loads(rows[1]['value'])
+        emotion_conclusion = "significant change detected in emotions: "
+        change_detected_in = []
+        if abs(rows[0]['neutral']-rows[1]['neutral']) > 10:
+            change_detected_in.append("neutral")
+        if abs(rows[0]['happy']-rows[1]['happy']) > 10:
+            change_detected_in.append("happy")
+        if abs(rows[0]['sad']-rows[1]['sad']) > 10:
+            change_detected_in.append("sad")
+        if abs(rows[0]['angry']-rows[1]['angry']) > 10:
+            change_detected_in.append("angry")
+        if abs(rows[0]['surprise']-rows[1]['surprise']) > 10:
+            change_detected_in.append("surprise")
+        if len(change_detected_in) == 0:
+            emotion_conclusion = "no significant change detected"
+        else:
+            emotion_conclusion += ", ".join(change_detected_in)
+    
+    # create a plot of most recent visit
+    plt.figure(figsize=(10, 6))
+    plt.bar(rows[0].keys(), rows[0].values())
+    plt.title(f"Patient {patient_id} Emotions")
+    plt.xlabel("Emotions")
+    plt.ylabel("Count")
+    plt.savefig(f"photos/{patient_id}_emotion_analysis.png")
+    plt.close()
+
+    # get the most recent frequency analysis
+    cursor.execute('''
+    SELECT * FROM patient_analysis WHERE patient_id = ?
+    AND analysis_type = 'frequency'
+    ''', (patient_id))
+
+    # get the most recent row by date
+    rows = cursor.fetchall()
+    rows = sorted(rows, key=lambda x: x['created'], reverse=True)
+    if len(rows) == 0:
+        frequency_conclusion = "no frequency analysis was recorded"
+    else:
+        new_rows = []
+        for row in rows:
+            new_rows.append(json.loads(row['value']))
+            new_rows[-1]['date'] = row['created']
+
+        # Convert to DataFrame
+        data_rows = []
+        # Flatten the data into a list of dictionaries
+        for entry in new_rows:
+            date = entry['date']
+            for symptom in entry['patient_symptoms']:
+                data_rows.append({
+                    'date': date,
+                    'symptom': symptom['symptom'],
+                    'count': symptom['count']
+                })
+
+        df = pd.DataFrame(data_rows)
+
+        # Convert 'date' column to datetime
+        df['date'] = pd.to_datetime(df['date'])
+
+        # Pivot the DataFrame to have a column for each symptom
+        df_pivot = df.pivot_table(index='date', columns='symptom', values='count', aggfunc='sum').fillna(0)
+
+        # Plotting
+        plt.figure(figsize=(10, 6))
+
+        # Plot each symptom's count over time
+        for symptom in df_pivot.columns:
+            plt.plot(df_pivot.index, df_pivot[symptom], label=symptom)
+
+        plt.title('Symptom Complaints Over Time')
+        plt.xlabel('Date')
+        plt.ylabel('Count')
+        plt.legend(title='Symptoms')
+        plt.xticks(rotation=45)
+        plt.grid(True)
+        plt.tight_layout()
+        plt.show()
 
 if __name__ == '__main__':
     #app.run(debug=True, ssl_context=('./cert.pem', './key.pem'))
