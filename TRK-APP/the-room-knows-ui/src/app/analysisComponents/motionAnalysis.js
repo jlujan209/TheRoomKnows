@@ -18,24 +18,8 @@ const MotionAnalysis = ({ patient_name, onComplete }) => {
     const captureImage = async () => {
         if (webcamRef.current) {
           const imageSrc = webcamRef.current.getScreenshot();
-          
-        //   try {
-        //     const res = await axios.post("https://localhost:5000/analysis/emotion-detection", {
-        //       image: imageSrc.split(",")[1],
-        //     });
-        //     setResponse(res.data);
-        //   } catch (err) {
-        //     setError(err.response?.data?.error || "An error occurred");
-        //   }
         }
       };
-
-    // return (
-    //     <>
-    //         <p>Running Motion Analysis for {patient_name}...</p>
-    //         <button onClick={onComplete}>continue</button>
-    //     </>
-    // );
 
     const startAnalysis = () => {
         setAnalyzing(true);
@@ -79,7 +63,7 @@ const MotionAnalysis = ({ patient_name, onComplete }) => {
               className={`btn ${analyzing ? "btn-danger" : "btn-primary"}`}  
               onClick={analyzing ? stopAnalysis : startAnalysis}
             >
-              {analyzing ? "Stop Analysis" : "Start Analysis"}
+              {analyzing ? "Stop Recording" : "Start Recording"}
             </button>
             <button className="btn btn-primary" onClick={onComplete}>continue</button>
           </div>
