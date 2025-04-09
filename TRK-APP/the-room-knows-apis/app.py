@@ -33,6 +33,7 @@ import whisper
 from group_by_qa import query_openai, perform_sentiment_analysis, perform_frequency_analysis
 import matplotlib.pyplot as plt
 import pandas as pd
+import re
 
 # Flask app with CORS enabled
 app = Flask(__name__)
@@ -489,10 +490,6 @@ def check_asymmetry_changes(current_asymmetry, previous_asymmetry, thresholds):
     print(f"Previous asymmetry: {previous_asymmetry}")
     print(f"Detected changes: {changes}")
     return changes
-
-
-        print("Error during capture/processing", e)
-        return jsonify({"error": str(e)}), 500
 
 @app.route('/load-test-data', methods=['GET'])
 def load_test_data():
