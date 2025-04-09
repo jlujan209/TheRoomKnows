@@ -34,6 +34,10 @@ from group_by_qa import query_openai, perform_sentiment_analysis, perform_freque
 import matplotlib.pyplot as plt
 import pandas as pd
 import re
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+from reportlab.platypus import Table, TableStyle, Image
+from reportlab.lib import colors
 
 # Flask app with CORS enabled
 app = Flask(__name__)
@@ -270,7 +274,7 @@ def rotate_and_transcribe():
     global current_audio_file
 
     while session_active:
-        eventlet.sleep(300)  # Wait 5 minutes
+        eventlet.sleep(240)  # Wait 4 minutes
         if not session_active:
             break
 
@@ -493,18 +497,22 @@ def check_asymmetry_changes(current_asymmetry, previous_asymmetry, thresholds):
 
 @app.route('/load-test-data', methods=['GET'])
 def load_test_data():
+    # drop all rows from patient_analysis
     cursor.execute('''
-    INSERT INTO patient_analysis (patient_id, analysis_type, value, created)
+    DELETE FROM patient_analysis
+    ''')
+    cursor.execute('''
+    INSERT INTO patient_analysis (patient_id, analysis_type, value, created_date)
     VALUES (?, ?, ?, ?)
     ''',(22, "emotion", json.dumps({"happy": 19, "sad": 10, "angry": 5, "surprise": 2, "neutral": 20}), "2025-01-01"))
     conn.commit()
     cursor.execute('''
-    INSERT INTO patient_analysis (patient_id, analysis_type, value, created)
+    INSERT INTO patient_analysis (patient_id, analysis_type, value, created_date)
     VALUES (?, ?, ?, ?)
     ''',(22, "emotion", json.dumps({"happy": 10, "sad": 13, "angry": 7, "surprise": 3, "neutral": 21}), "2025-03-22"))
     conn.commit()
     cursor.execute('''
-    INSERT INTO patient_analysis (patient_id, analysis_type, value, created)
+    INSERT INTO patient_analysis (patient_id, analysis_type, value, created_date)
     VALUES (?, ?, ?, ?)
     ''', (22, "frequency", json.dumps({"patient_symptoms": [
             {"symptom": "chest pain", "count": 5},
@@ -513,12 +521,30 @@ def load_test_data():
         ]}),"2025-01-01"))
     conn.commit()
     cursor.execute('''
-    INSERT INTO patient_analysis (patient_id, analysis_type, value, created)
+    INSERT INTO patient_analysis (patient_id, analysis_type, value, created_date)
     VALUES (?, ?, ?, ?)
     ''', (22, "frequency", json.dumps({"patient_symptoms": [
             {"symptom": "chest pain", "count": 3},
             {"symptom": "sweating", "count": 1}
         ]}),"2025-03-22"))
+    conn.commit()
+    cursor.execute('''
+    INSERT INTO patient_analysis (patient_id, analysis_type, value, created_date)
+    VALUES (?, ?, ?, ?)   
+    ''',(22, 'sentiment', json.dumps({
+        'positive': 10,
+        'negative': 11,
+        'neutral': 20,
+    }), "2025-03-22"))
+    conn.commit()
+    cursor.execute('''
+    INSERT INTO patient_analysis (patient_id, analysis_type, value, created_date)
+    VALUES (?, ?, ?, ?)   
+    ''',(22, 'sentiment', json.dumps({
+        'positive': 20,
+        'negative': 8,
+        'neutral': 20,
+    }), "2025-01-01"))
     conn.commit()
     return jsonify({
         "message" : "canned data added",
@@ -628,16 +654,17 @@ def upload_image():
         print("Error processing image:", e)
         return jsonify({"error": str(e)}), 500
 
-
+@app.route('/generate-report/<patient_id>', methods=['GET'])
 def generate_report(patient_id: str):
+    start_time = time.time()
     # get emotion data
     cursor.execute('''
     SELECT * FROM patient_analysis WHERE patient_id = ?
     AND analysis_type = 'emotion'
-    ''', (patient_id))
+    ''', (patient_id,))
     rows = cursor.fetchall()
     # get the two most recent rows by date
-    rows = sorted(rows, key=lambda x: x['created'], reverse=True)[:2]
+    rows = sorted(rows, key=lambda x: x['created_date'], reverse=True)[:2]
     # check for significant change
     if len(rows) < 2:
         emotion_conclusion = "only one visit was recorded, no significant change detected"
@@ -646,15 +673,15 @@ def generate_report(patient_id: str):
         rows[1] = json.loads(rows[1]['value'])
         emotion_conclusion = "significant change detected in emotions: "
         change_detected_in = []
-        if abs(rows[0]['neutral']-rows[1]['neutral']) > 10:
+        if abs(rows[0]['neutral'] - rows[1]['neutral']) > 10:
             change_detected_in.append("neutral")
-        if abs(rows[0]['happy']-rows[1]['happy']) > 10:
+        if abs(rows[0]['happy'] - rows[1]['happy']) > 10:
             change_detected_in.append("happy")
-        if abs(rows[0]['sad']-rows[1]['sad']) > 10:
+        if abs(rows[0]['sad'] - rows[1]['sad']) > 10:
             change_detected_in.append("sad")
-        if abs(rows[0]['angry']-rows[1]['angry']) > 10:
+        if abs(rows[0]['angry'] - rows[1]['angry']) > 10:
             change_detected_in.append("angry")
-        if abs(rows[0]['surprise']-rows[1]['surprise']) > 10:
+        if abs(rows[0]['surprise'] - rows[1]['surprise']) > 10:
             change_detected_in.append("surprise")
         if len(change_detected_in) == 0:
             emotion_conclusion = "no significant change detected"
@@ -674,18 +701,23 @@ def generate_report(patient_id: str):
     cursor.execute('''
     SELECT * FROM patient_analysis WHERE patient_id = ?
     AND analysis_type = 'frequency'
-    ''', (patient_id))
+    ''', (patient_id,))
 
     # get the most recent row by date
     rows = cursor.fetchall()
-    rows = sorted(rows, key=lambda x: x['created'], reverse=True)
+    rows = sorted(rows, key=lambda x: x['created_date'], reverse=True)
     if len(rows) == 0:
         frequency_conclusion = "no frequency analysis was recorded"
     else:
         new_rows = []
+        freq_data = json.loads(rows[0]['value'])
+        print("Frequency Analysis Data:")
+        print(freq_data)
+        print(rows)
         for row in rows:
+            print(row.keys())
             new_rows.append(json.loads(row['value']))
-            new_rows[-1]['date'] = row['created']
+            new_rows[-1]['date'] = row['created_date']
 
         # Convert to DataFrame
         data_rows = []
@@ -723,6 +755,119 @@ def generate_report(patient_id: str):
         plt.tight_layout()
         plt.savefig(f"graphs/{patient_id}_frequency_analysis.png")
         plt.close()
+
+        frequency_conclusion = "done"
+    
+    # analyze the sentiment analysis
+    cursor.execute('''
+    SELECT * FROM patient_analysis WHERE patient_id = ?
+    AND analysis_type = 'sentiment'
+    ''', (patient_id,))
+    rows = cursor.fetchall()
+    # get the most recent row by date
+    rows = sorted(rows, key=lambda x: x['created_date'], reverse=True)
+    if len(rows) == 0:
+        sentiment_conclusion = "no sentiment analysis was recorded"
+    else:
+        rows[0] = json.loads(rows[0]['value'])
+        sentiment_conclusion = "sentiment analysis: "
+        if rows[0]['positive'] > rows[0]['negative']:
+            sentiment_conclusion += "positive"
+        elif rows[0]['positive'] < rows[0]['negative']:
+            sentiment_conclusion += "negative"
+        else:
+            sentiment_conclusion += "neutral"
+    
+    # create a bar chart with sentiment on x ashix and count on y axis
+    plt.figure(figsize=(10, 6))
+    plt.bar(rows[0].keys(), rows[0].values())
+    plt.title(f"Patient {patient_id} Sentiment Analysis")
+    plt.xlabel("Sentiment")
+    plt.ylabel("Count")
+    plt.savefig(f"graphs/{patient_id}_sentiment_analysis.png")
+    plt.close()
+
+    generate_pdf_report(f"graphs/{patient_id}_frequency_analysis.png", freq_data, f"graphs/{patient_id}_sentiment_analysis.png", f"graphs/{patient_id}_emotion_analysis.png")
+
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    return jsonify({
+        "message": f"Report generated successfully in {elapsed_time:.2f} seconds",
+        "emotion_analysis": {
+            "conclusion": emotion_conclusion,
+            "image": f"{patient_id}_emotion_analysis.png"
+        },
+        "frequency_analysis": {
+            "conclusion": frequency_conclusion,
+            "image": f"{patient_id}_frequency_analysis.png"
+        }
+    }), 200
+
+def generate_pdf_report(freq_analysis_img, symptoms, sentiment_img, emotion_analysis_img):
+    c = canvas.Canvas("report.pdf", pagesize=letter)
+    width, height = letter
+    cur_y = height - 50
+
+    # Add title
+    c.setFont("Helvetica", 20)
+    c.drawString(100, cur_y, "Doctor Visit Analysis Report")
+    c.setFont("Helvetica", 18)
+    cur_y -= 20
+    c.drawString(100, cur_y, "SUBJECTIVE")
+    c.setFont("Helvetica", 16)
+    cur_y -= 20
+    c.drawString(100, cur_y, "Emotion Analysis Output")
+    cur_y -= 320
+    c.drawImage(emotion_analysis_img, 100, cur_y, width=400, height=300)
+
+    cur_y -= 20
+    c.setFont("Helvetica", 18)
+    c.drawString(100, cur_y, "OBJECTIVE")
+    c.setFont("Helvetica", 16)
+    cur_y -= 20
+    # Add sentiment plot
+    c.drawString(100, cur_y, "Sentiment Analysis Output")
+    cur_y -= 320
+    c.drawImage(sentiment_img, 100, cur_y, width=400, height=300)
+    cur_y -= 50
+    c.showPage()
+    c.setFont("Helvetica", 16)
+    cur_y = height - 50
+    c.drawString(100, cur_y, "Chief Complaint Counts")
+    # Create a table for the counts
+    data = [["Symptom", "Count"]]
+    print(symptoms)
+    print(symptoms['patient_symptoms'])
+    for symptom in symptoms['patient_symptoms']:
+        data.append([symptom["symptom"], symptom["count"]])
+    table = Table(data)
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+    ]))
+    table.wrapOn(c, width, height)
+    print(table.__dict__)
+    cur_y -= (table._height + 10)
+    table.drawOn(c, 100, cur_y)
+    # Add the frequency analysis plot
+    cur_y -= 20
+    c.drawString(100, cur_y, "Frequency Analysis Output")
+    cur_y -= 320
+    c.drawImage(freq_analysis_img, 100, cur_y, width=400, height=300)
+    cur_y -= 50
+    c.setFont("Helvetica", 18)
+    c.drawString(100, cur_y, "ASSESSMENT")
+    cur_y -= 50
+    c.drawString(100, cur_y, "PLAN")
+
+
+    # Save the PDF
+    c.save()
 
 if __name__ == '__main__':
     #app.run(debug=True, ssl_context=('./cert.pem', './key.pem'))
