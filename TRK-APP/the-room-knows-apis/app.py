@@ -362,7 +362,7 @@ def save_results():
     results = data.get('results')
     patient_name = data.get('patient_name')
     try:
-        cursor.execute('INSERT INTO patient_analysis (patient_id, analysis_type, value) VALUES (?,?,?)', (patient_name, 'emotion', results,))
+        cursor.execute('INSERT INTO patient_analysis (patient_id, analysis_type, value) VALUES (?,?,?)', (patient_name, 'emotion', json.dumps(results),))
         conn.commit()
         return jsonify({"message": "successfully saved results for emotion detection."}), 201
     except Exception as e:
