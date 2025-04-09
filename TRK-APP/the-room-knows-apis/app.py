@@ -395,6 +395,40 @@ def capture_and_process():
     except Exception as e:
         print("Error during capture/processing", e)
         return jsonify({"error": str(e)}), 500
+
+@app.route('/load-test-data', methods=['GET'])
+def load_test_data():
+    cursor.execute('''
+    INSERT INTO patient_analysis (patient_id, analysis_type, value, created)
+    VALUES (?, ?, ?, ?)
+    ''',(22, "emotion", json.dumps({"happy": 19, "sad": 10, "angry": 5, "surprise": 2, "neutral": 20}), "2025-01-01"))
+    conn.commit()
+    cursor.execute('''
+    INSERT INTO patient_analysis (patient_id, analysis_type, value, created)
+    VALUES (?, ?, ?, ?)
+    ''',(22, "emotion", json.dumps({"happy": 10, "sad": 13, "angry": 7, "surprise": 3, "neutral": 21}), "2025-03-22"))
+    conn.commit()
+    cursor.execute('''
+    INSERT INTO patient_analysis (patient_id, analysis_type, value, created)
+    VALUES (?, ?, ?, ?)
+    ''', (22, "frequency", json.dumps({"patient_symptoms": [
+            {"symptom": "chest pain", "count": 5},
+            {"symptom": "sweating", "count": 3},
+            {"symptom": "nausea", "count": 1}
+        ]}),"2025-01-01"))
+    conn.commit()
+    cursor.execute('''
+    INSERT INTO patient_analysis (patient_id, analysis_type, value, created)
+    VALUES (?, ?, ?, ?)
+    ''', (22, "frequency", json.dumps({"patient_symptoms": [
+            {"symptom": "chest pain", "count": 3},
+            {"symptom": "sweating", "count": 1}
+        ]}),"2025-03-22"))
+    conn.commit()
+    return jsonify({
+        "message" : "canned data added",
+        "data": "data"
+    }), 201
     
 def capture_image():
     cap = cv2.VideoCapture(0)
@@ -581,7 +615,7 @@ def generate_report(patient_id: str):
     plt.title(f"Patient {patient_id} Emotions")
     plt.xlabel("Emotions")
     plt.ylabel("Count")
-    plt.savefig(f"photos/{patient_id}_emotion_analysis.png")
+    plt.savefig(f"graphs/{patient_id}_emotion_analysis.png")
     plt.close()
 
     # get the most recent frequency analysis
@@ -635,7 +669,8 @@ def generate_report(patient_id: str):
         plt.xticks(rotation=45)
         plt.grid(True)
         plt.tight_layout()
-        plt.show()
+        plt.savefig(f"graphs/{patient_id}_frequency_analysis.png")
+        plt.close()
 
 if __name__ == '__main__':
     #app.run(debug=True, ssl_context=('./cert.pem', './key.pem'))
