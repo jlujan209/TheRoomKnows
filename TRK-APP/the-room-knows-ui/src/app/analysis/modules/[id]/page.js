@@ -1,8 +1,6 @@
 "use client";
 
 import React, { useRef, useState, useEffect } from "react";
-import Webcam from "react-webcam";
-import axios from "axios";
 import "bootstrap/dist/css/bootstrap.min.css";
 import withAuth from "../../../hoc/withAuth";
 import { useRouter, useSearchParams } from "next/navigation";
