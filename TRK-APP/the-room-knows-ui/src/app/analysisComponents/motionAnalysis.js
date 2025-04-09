@@ -1,5 +1,3 @@
-"use client";
-
 import React, { useRef, useState, useEffect } from "react";
 import Webcam from "react-webcam";
 import "bootstrap/dist/css/bootstrap.min.css";
@@ -9,29 +7,38 @@ import axios from "axios";
 const MotionAnalysis = ({ patient_name, onComplete }) => {
   const [recording, setRecording] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState(null);
-  const [videoChunks, setVideoChunks] = useState([]);
   const [videoBlob, setVideoBlob] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [gaitResult, setGaitResult] = useState(null);
   const webcamRef = useRef(null);
   const streamRef = useRef(null);
+  const videoChunksRef = useRef([]);  // Use ref to store chunks
   const router = useRouter();
 
   const startRecording = async () => {
     const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
     streamRef.current = stream;
 
-    const recorder = new MediaRecorder(stream);
-    setVideoChunks([]);
+    const recorder = new MediaRecorder(stream, {
+      mimeType: "video/webm;codecs=vp8"
+    });
+    videoChunksRef.current = [];  // Reset video chunks for the new recording
 
     recorder.ondataavailable = (e) => {
+      console.log("Recording data available, chunk size:", e.data.size);
       if (e.data.size > 0) {
-        setVideoChunks((prev) => [...prev, e.data]);
+        videoChunksRef.current.push(e.data);  // Use ref to accumulate chunks
       }
     };
 
     recorder.onstop = () => {
-      const blob = new Blob(videoChunks, { type: "video/webm" });
-      setVideoBlob(blob);
+      console.log("Recording stopped. Final chunk count:", videoChunksRef.current.length);
+      // Delay creating the final blob to ensure all chunks are accumulated
+      setTimeout(() => {
+        const finalBlob = new Blob([...videoChunksRef.current], { type: "video/webm" });
+        console.log("Final video blob size:", finalBlob.size);
+        setVideoBlob(finalBlob);
+      }, 100);  // Delay to ensure all chunks are added
     };
 
     recorder.start();
@@ -52,15 +59,25 @@ const MotionAnalysis = ({ patient_name, onComplete }) => {
     const formData = new FormData();
     formData.append("video", videoBlob, `${patient_name || "motion"}.webm`);
     formData.append("patient_name", patient_name || "");
+    console.log("Video size:", videoBlob.size);
 
     try {
-      const res = await axios.post("/api/upload-video", formData, {
+      const res = await axios.post("http://localhost:5000/motion-analysis/upload-video", formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },
       });
-      console.log("Upload successful:", res.data);
-      onComplete(); // go to next module
+
+      const { abnormal_gait } = res.data;
+      setGaitResult(abnormal_gait);
+
+      if (abnormal_gait) {
+        alert("⚠️ Abnormal gait detected!");
+      } else {
+        alert("✅ Gait appears normal.");
+      }
+
+      onComplete();
     } catch (err) {
       console.error("Upload error:", err);
       alert("There was an error uploading the video.");
