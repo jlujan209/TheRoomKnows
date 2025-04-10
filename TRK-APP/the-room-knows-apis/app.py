@@ -1026,7 +1026,7 @@ def generate_pdf_report(freq_analysis_img, symptoms, sentiment_img, sentiment_co
 
     # Save the PDF
     c.save()
-    shutil.copy(outfile_name, r"C:\Users\skyle\Documents\SeniorDesign\TheRoomKnows\TRK-APP\the-room-knows-ui\public")
+    shutil.copy(outfile_name, r"C:\Users\Lujan\Documents\GitHub\TheRoomKnows\TRK-APP\the-room-knows-ui\public")
     return f"/the-room-knows-ui/public/{outfile_name}"
 
 # Motion Analysis ----------------------------------------------------------------------------------

@@ -16,7 +16,8 @@ const ReportGeneration = ({ patient_name }) => {
         const data = await res.json();
 
         if (res.ok && data.filepath) {
-          setPdfUrl(data.filepath);
+          const relativePath = data.filepath.replace(/^.*\/public/, '');
+          setPdfUrl(relativePath);
         } else {
           console.error("Failed to generate report", data);
         }
