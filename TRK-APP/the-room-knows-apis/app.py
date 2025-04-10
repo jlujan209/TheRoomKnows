@@ -36,7 +36,7 @@ import pandas as pd
 import re
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
-from reportlab.platypus import Table, TableStyle, Image
+from reportlab.platypus import Table, TableStyle, Image, Paragraph
 from reportlab.lib import colors
 
 from gait_analyzer import analyze_gait
@@ -677,27 +677,43 @@ def generate_report(patient_id: str):
     # get the two most recent rows by date
     rows = sorted(rows, key=lambda x: x['created_date'], reverse=True)[:2]
     # check for significant change
-    if len(rows) < 2:
-        emotion_conclusion = "only one visit was recorded, no significant change detected"
+    if len(rows) == 0:
+        emotion_conclusion = "No sentiment analysis was recorded."
+        e_data = None
     else:
-        rows[0] = json.loads(rows[0]['value'])
-        rows[1] = json.loads(rows[1]['value'])
-        emotion_conclusion = "significant change detected in emotions: "
-        change_detected_in = []
-        if abs(rows[0]['neutral'] - rows[1]['neutral']) > 10:
-            change_detected_in.append("neutral")
-        if abs(rows[0]['happy'] - rows[1]['happy']) > 10:
-            change_detected_in.append("happy")
-        if abs(rows[0]['sad'] - rows[1]['sad']) > 10:
-            change_detected_in.append("sad")
-        if abs(rows[0]['angry'] - rows[1]['angry']) > 10:
-            change_detected_in.append("angry")
-        if abs(rows[0]['surprise'] - rows[1]['surprise']) > 10:
-            change_detected_in.append("surprise")
-        if len(change_detected_in) == 0:
-            emotion_conclusion = "no significant change detected"
-        else:
-            emotion_conclusion += ", ".join(change_detected_in)
+        emotion_conclusion = ""
+        # find the dominant emotion in the first row (most recent analysis)
+        m = 0
+        dominant_emotion = None
+        for key, value in json.loads(rows[0]['value']).items():
+            if value > m:
+                m = value
+                dominant_emotion = key
+        emotion_conclusion += f"The predominant emotion in this visit was {dominant_emotion}. "
+        if len(rows) > 1:
+            e_data = json.loads(rows[0]['value'])
+            rows[0] = json.loads(rows[0]['value'])
+            rows[1] = json.loads(rows[1]['value'])
+            change_detected_in = []
+            
+            
+
+            if abs(rows[0]['neutral'] - rows[1]['neutral']) > 10:
+                change_detected_in.append("neutral")
+            if abs(rows[0]['happy'] - rows[1]['happy']) > 10:
+                change_detected_in.append("happy")
+            if abs(rows[0]['sad'] - rows[1]['sad']) > 10:
+                change_detected_in.append("sad")
+            if abs(rows[0]['angry'] - rows[1]['angry']) > 10:
+                change_detected_in.append("angry")
+            if abs(rows[0]['surprise'] - rows[1]['surprise']) > 10:
+                change_detected_in.append("surprise")
+            if len(change_detected_in) == 0:
+                emotion_conclusion = "No significant change detected from previous visit. "
+            else:
+                emotion_conclusion = "Significant change detected in emotions since last visit: "
+                emotion_conclusion += ", ".join(change_detected_in) + '. '
+        
     
     # create a plot of most recent visit
     plt.figure(figsize=(10, 6))
@@ -718,7 +734,7 @@ def generate_report(patient_id: str):
     rows = cursor.fetchall()
     rows = sorted(rows, key=lambda x: x['created_date'], reverse=True)
     if len(rows) == 0:
-        frequency_conclusion = "no frequency analysis was recorded"
+        frequency_conclusion = "No frequency analysis was recorded."
     else:
         new_rows = []
         freq_data = json.loads(rows[0]['value'])
@@ -777,31 +793,113 @@ def generate_report(patient_id: str):
     rows = cursor.fetchall()
     # get the most recent row by date
     rows = sorted(rows, key=lambda x: x['created_date'], reverse=True)
-    if len(rows) == 0:
+    if len(rows) == 0: # no sentiment analysis data found
         sentiment_conclusion = "no sentiment analysis was recorded"
-    else:
-        rows[0] = json.loads(rows[0]['value'])
-        sentiment_conclusion = "sentiment analysis: "
-        if rows[0]['positive'] > rows[0]['negative']:
-            sentiment_conclusion += "positive"
-        elif rows[0]['positive'] < rows[0]['negative']:
-            sentiment_conclusion += "negative"
-        else:
-            sentiment_conclusion += "neutral"
-    
-    # create a bar chart with sentiment on x ashix and count on y axis
-    plt.figure(figsize=(10, 6))
-    plt.bar(rows[0].keys(), rows[0].values())
-    plt.title(f"Patient {patient_id} Sentiment Analysis")
-    plt.xlabel("Sentiment")
-    plt.ylabel("Count")
-    plt.savefig(f"graphs/{patient_id}_sentiment_analysis.png")
-    plt.close()
+    else: # data found
+        def avg_sentiment(r):
+            total = r['positive'] + r['negative'] + r['neutral']
+            return {
+                'positive': r['positive'] / total,
+                'negative': r['negative'] / total,
+                'neutral': r['neutral'] / total
+            }
+        if len(rows) >= 2:
+            r1, r2 = json.loads(rows[0]['value']), json.loads(rows[1]['value'])
+            r1, r2 = avg_sentiment(r1), avg_sentiment(r2)
 
-    generate_pdf_report(f"graphs/{patient_id}_frequency_analysis.png", freq_data, f"graphs/{patient_id}_sentiment_analysis.png", f"graphs/{patient_id}_emotion_analysis.png")
+            if r1['positive'] > r2['positive']:
+                sentiment_conclusion = "sentiment analysis shows positive change"
+            elif r1['negative'] > r2['negative']:
+                sentiment_conclusion = "sentiment analysis shows negative change"
+            else:
+                sentiment_conclusion = "sentiment analysis shows no change"
+        elif len(rows) == 1:
+            r1 = json.loads(rows[0]['value'])
+            r1 = avg_sentiment(r1)
+            if r1['positive'] > r1['negative']:
+                sentiment_conclusion = "first sentiment analysis results show positive sentiment overall"
+            elif r1['negative'] > r1['positive']:
+                sentiment_conclusion = "first sentiment analysis results show negative sentiment overall"
+            else:
+                sentiment_conclusion = "first sentiment analysis results show neutral sentiment overall"
+    
+        # create a bar chart with sentiment on x ashix and count on y axis
+        plt.figure(figsize=(10, 6))
+        plt.bar(r1.keys(), r1.values())
+        plt.title(f"Patient {patient_id} Sentiment Analysis")
+        plt.xlabel("Sentiment")
+        plt.ylabel("Count")
+        plt.savefig(f"graphs/{patient_id}_sentiment_analysis.png")
+        plt.close()
+    
+    chat_message = ''
+    if e_data is not None:
+        chat_message += 'Emotion Analysis: ' + str(e_data) + '\n'
+    if freq_data is not None:
+        chat_message += 'Symptom Frequency: ' + str(freq_data['patient_symptoms']) + '\n'
+    if rows is not None:
+        chat_message += 'Sentiment Analysis: ' + str(rows[0]) + '\n'
+
+
+    if chat_message == '':
+        return jsonify({"error": "No data found for patient"}), 404
+    
+    print(chat_message)
+    client = openai.OpenAI(api_key=OPENAI_API_KEY)
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": "You are a helpful assistant to a doctor. I will give you a list of symptoms and the number of times they were reported. "
+                                        "Their relative sentiment anslysis (positive, negative, neutral) and the emotion analysis (happy, sad, angry, surprise, neutral). "
+                                        "You will provide a conclusion about the patient's condition based on this data and write recommendations for the doctor."},
+            {"role": "user", "content": chat_message},
+        ]
+    )
+    chat_response = response.choices[0].message.content
+    print(chat_response)
+
+    # get the most recent motion analysis
+    cursor.execute('''
+    SELECT * FROM patient_analysis WHERE patient_id = ?
+    AND analysis_type = 'motion'
+    ''', (patient_id,))
+    rows = cursor.fetchall()
+    # get the most recent row by date
+    rows = sorted(rows, key=lambda x: x['created_date'], reverse=True)
+    if len(rows) == 0:
+        motion_conclusion = "no motion analysis was recorded"
+    else:
+        motion_conclusion = rows[0]['value']
+
+    # get the most recent facial mapping analysis
+    cursor.execute('''
+    SELECT * FROM patient_analysis WHERE patient_id = ?
+    AND analysis_type = 'facial'
+    ''', (patient_id,))
+    rows = cursor.fetchall()
+    # get the most recent row by date
+    rows = sorted(rows, key=lambda x: x['created_date'], reverse=True)
+    if len(rows) == 0:
+        facial_conclusion = "no facial mapping analysis was recorded"
+    else:
+        facial_conclusion = rows[0]['value']
+
+
+    generate_pdf_report(
+        f"graphs/{patient_id}_frequency_analysis.png", 
+        freq_data, 
+        f"graphs/{patient_id}_sentiment_analysis.png",
+        sentiment_conclusion,
+        f"graphs/{patient_id}_emotion_analysis.png",
+        emotion_conclusion,
+        facial_conclusion,
+        motion_conclusion,
+        chat_response
+    )
 
     end_time = time.time()
     elapsed_time = end_time - start_time
+
     return jsonify({
         "message": f"Report generated successfully in {elapsed_time:.2f} seconds",
         "emotion_analysis": {
@@ -814,7 +912,7 @@ def generate_report(patient_id: str):
         }
     }), 200
 
-def generate_pdf_report(freq_analysis_img, symptoms, sentiment_img, emotion_analysis_img):
+def generate_pdf_report(freq_analysis_img, symptoms, sentiment_img, sentiment_conclusion, emotion_analysis_img, emotion_conclusion, facial_conclusion, motion_conclusion, ai_assessment):
     c = canvas.Canvas("report.pdf", pagesize=letter)
     width, height = letter
     cur_y = height - 50
@@ -830,20 +928,25 @@ def generate_pdf_report(freq_analysis_img, symptoms, sentiment_img, emotion_anal
     c.drawString(100, cur_y, "Emotion Analysis Output")
     cur_y -= 320
     c.drawImage(emotion_analysis_img, 100, cur_y, width=400, height=300)
-
-    cur_y -= 20
-    c.setFont("Helvetica", 18)
-    c.drawString(100, cur_y, "OBJECTIVE")
-    c.setFont("Helvetica", 16)
+    paragraph = Paragraph(f"Emotion Analysis Conclusion: {emotion_conclusion}")
+    paragraph.wrapOn(c, width - 200, height - 100)
+    cur_y -= paragraph.height
+    paragraph.drawOn(c, 100, cur_y)
     cur_y -= 20
     # Add sentiment plot
     c.drawString(100, cur_y, "Sentiment Analysis Output")
     cur_y -= 320
     c.drawImage(sentiment_img, 100, cur_y, width=400, height=300)
-    cur_y -= 50
+    paragraph = Paragraph(f"Sentiment Analysis Conclusion: {sentiment_conclusion}")
+    paragraph.wrapOn(c, width - 200, height - 100)
+    cur_y -= paragraph.height
+    paragraph.drawOn(c, 100, cur_y)
     c.showPage()
-    c.setFont("Helvetica", 16)
     cur_y = height - 50
+    c.setFont("Helvetica", 18)
+    c.drawString(100, cur_y, "OBJECTIVE")
+    cur_y -= 20
+    c.setFont("Helvetica", 16)
     c.drawString(100, cur_y, "Chief Complaint Counts")
     # Create a table for the counts
     data = [["Symptom", "Count"]]
@@ -871,11 +974,28 @@ def generate_pdf_report(freq_analysis_img, symptoms, sentiment_img, emotion_anal
     cur_y -= 320
     c.drawImage(freq_analysis_img, 100, cur_y, width=400, height=300)
     cur_y -= 50
+    c.drawString(100, cur_y, "Facial Mapping Analysis Output")
+    paragraph = Paragraph(f"Facial Mapping Analysis Conclusion: {facial_conclusion}")
+    paragraph.wrapOn(c, width - 200, height - 100)
+    cur_y -= paragraph.height
+    paragraph.drawOn(c, 100, cur_y)
+    cur_y -= 20
+    c.drawString(100, cur_y, "Motion Analysis Output")
+    paragraph = Paragraph(f"Motion Analysis Conclusion: {motion_conclusion}")
+    paragraph.wrapOn(c, width - 200, height - 100)
+    cur_y -= paragraph.height
+    paragraph.drawOn(c, 100, cur_y)
+    cur_y -= 20
+    c.showPage()
+    cur_y = height - 50
     c.setFont("Helvetica", 18)
     c.drawString(100, cur_y, "ASSESSMENT")
-    cur_y -= 50
-    c.drawString(100, cur_y, "PLAN")
-
+    c.setFont("Helvetica", 16)
+    paragraph = Paragraph(f"AI Assessment: {ai_assessment}")
+    paragraph.wrapOn(c, width - 200, height - 100)
+    cur_y -= paragraph.height
+    paragraph.drawOn(c, 100, cur_y)
+    cur_y -= 20
 
     # Save the PDF
     c.save()
