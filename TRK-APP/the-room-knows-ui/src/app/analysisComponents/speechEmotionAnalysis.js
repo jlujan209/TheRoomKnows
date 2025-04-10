@@ -62,7 +62,11 @@ const SpeechEmotionAnalysis = ({ patient_name, onComplete, emotion, speech }) =>
     }
 
     if (speech) {
-      socketRef.current = io("http://localhost:5000");
+      socketRef.current = io("http://localhost:5000", {
+        query: {
+          patient_name: patient_name, // This will get sent with the initial connection
+        },
+      });
       socketRef.current.on("connect", () => {
         console.log("Socket connected for Speech Analysis");
       });

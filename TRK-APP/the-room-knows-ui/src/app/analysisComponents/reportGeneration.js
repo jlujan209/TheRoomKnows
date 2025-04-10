@@ -7,11 +7,28 @@ import "bootstrap/dist/css/bootstrap.min.css";
 const ReportGeneration = ({ patient_name }) => {
   const router = useRouter();
   const [pdfUrl, setPdfUrl] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const generateReport = async () => {
+      try {
+        const res = await fetch(`http://localhost:5000/generate-report/${encodeURIComponent(patient_name)}`);
+        const data = await res.json();
+
+        if (res.ok && data.filepath) {
+          setPdfUrl(data.filepath);
+        } else {
+          console.error("Failed to generate report", data);
+        }
+      } catch (err) {
+        console.error("Error calling report endpoint:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     if (patient_name) {
-      // Example PDF endpoint
-      setPdfUrl(`/api/visit-report?patient_name=${encodeURIComponent(patient_name)}`);
+      generateReport();
     }
   }, [patient_name]);
 
@@ -19,7 +36,9 @@ const ReportGeneration = ({ patient_name }) => {
     <div className="container py-4 text-center">
       <h2 className="mb-4">Final Visit Report for {patient_name}</h2>
 
-      {pdfUrl ? (
+      {loading ? (
+        <div className="alert alert-info">Generating report...</div>
+      ) : pdfUrl ? (
         <div className="mb-4 d-flex justify-content-center">
           <iframe
             src={pdfUrl}
@@ -30,7 +49,7 @@ const ReportGeneration = ({ patient_name }) => {
           />
         </div>
       ) : (
-        <div className="alert alert-info">Loading report...</div>
+        <div className="alert alert-danger">Failed to load report.</div>
       )}
 
       <button

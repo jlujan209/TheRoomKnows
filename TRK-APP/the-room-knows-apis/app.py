@@ -78,6 +78,8 @@ users = {
     "username": "password"
 }
 
+ANALYSIS_PATIENT_NAME = ''
+
 # stuff skyler added for emotion and audio stuff
 current_audio_file = None
 current_file_lock = threading.Lock()
@@ -183,8 +185,8 @@ def edit_patient():
 # Web Sockets Routes to handle real-time connections
 @socketio.on('connect')
 def handle_connect(data):
-    global patient_name 
-    patient_name = data.get('patient_name', None)
+    ANALYSIS_PATIENT_NAME = data.get('patient_name', None)
+    patient_name = ANALYSIS_PATIENT_NAME
     if not patient_name:
         emit("connection_response", {"error": "Patient name is required"})
         return
@@ -195,7 +197,7 @@ def handle_connect(data):
 
 @socketio.on('disconnect')
 def handle_disconnect():
-    global patient_name
+    patient_name = ANALYSIS_PATIENT_NAME
     print("Client Disconnected")
     final_transcripts, emotions = stop_session(patient_name)
     print(final_transcripts)
@@ -205,6 +207,7 @@ def handle_disconnect():
     with open("emotions.json", "w") as f:
         json.dump(emotions, f)
     print("Client Disconnected, Speech Analysis Session has ended")
+    ANALYSIS_PATIENT_NAME = ''
 
 
 @app.route("/analysis/emotion-detection", methods=["POST"])
