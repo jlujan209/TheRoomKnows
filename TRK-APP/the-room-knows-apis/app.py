@@ -682,17 +682,17 @@ def generate_report(patient_id: str):
         e_data = None
     else:
         emotion_conclusion = ""
+        rows[0] = json.loads(rows[0]['value'])
         # find the dominant emotion in the first row (most recent analysis)
         m = 0
         dominant_emotion = None
-        for key, value in json.loads(rows[0]['value']).items():
+        for key, value in rows[0].items():
             if value > m:
                 m = value
                 dominant_emotion = key
         emotion_conclusion += f"The predominant emotion in this visit was {dominant_emotion}. "
         if len(rows) > 1:
             e_data = json.loads(rows[0]['value'])
-            rows[0] = json.loads(rows[0]['value'])
             rows[1] = json.loads(rows[1]['value'])
             change_detected_in = []
             
@@ -745,7 +745,6 @@ def generate_report(patient_id: str):
             print(row.keys())
             new_rows.append(json.loads(row['value']))
             new_rows[-1]['date'] = row['created_date']
-
         # Convert to DataFrame
         data_rows = []
         # Flatten the data into a list of dictionaries
