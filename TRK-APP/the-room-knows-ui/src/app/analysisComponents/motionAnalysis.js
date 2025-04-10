@@ -71,11 +71,18 @@ const MotionAnalysis = ({ patient_name, onComplete }) => {
       const { abnormal_gait } = res.data;
       setGaitResult(abnormal_gait);
 
-      if (abnormal_gait) {
-        alert("⚠️ Abnormal gait detected!");
-      } else {
-        alert("✅ Gait appears normal.");
-      }
+      const resultPayload = {
+        patient_name: patient_name,
+        result: abnormal_gait ? "Abnormal gait detected." : "Gait appears normal.",
+      };
+
+      await axios.post("http://localhost:5000/motion-analysis/save-results", resultPayload, {
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      
 
       onComplete();
     } catch (err) {
