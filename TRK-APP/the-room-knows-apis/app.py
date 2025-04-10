@@ -692,6 +692,9 @@ def generate_report(patient_id: str):
         else:
             emotion_conclusion += ", ".join(change_detected_in)
     
+    emotion_time = time.time()
+    print(f"Emotion analysis time: {emotion_time - start_time} seconds")
+
     # create a plot of most recent visit
     plt.figure(figsize=(10, 6))
     plt.bar(rows[0].keys(), rows[0].values())
