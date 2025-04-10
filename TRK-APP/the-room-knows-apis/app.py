@@ -634,6 +634,8 @@ def handle_image_from_api(base64_image, patient_id):
 
 @app.route('/analysis/facial-mapping', methods=['POST'])
 def upload_image():
+    start_time = time.perf_counter()
+
     data = request.json
     patient_name = data.get("name", "").strip()
     image_data = data.get("image", "")
@@ -646,6 +648,11 @@ def upload_image():
 
     try:
         response = handle_image_from_api(image_data, patient_name)
+        
+        end_time = time.perf_counter()
+        execution_time = end_time - start_time
+
+        print(f"Execution time: {execution_time} seconds")
         if "error" in response:
             return jsonify({"error": response["error"]}), 400
         return jsonify({
@@ -876,6 +883,7 @@ def generate_pdf_report(freq_analysis_img, symptoms, sentiment_img, emotion_anal
 # Motion Analysis ----------------------------------------------------------------------------------
 @app.route("/motion-analysis/upload-video", methods=["POST"])
 def motion_analysis():
+    
     if 'video' not in request.files:
         return jsonify({"error": "No video file provided"}), 400
 
@@ -899,13 +907,47 @@ def motion_analysis():
 
     # Proceed with gait analysis
     result, output_path = analyze_gait(save_path, output_dir=UPLOAD_FOLDER)
-    if "error" in result:
-        return jsonify(result), 500
 
     return jsonify({
         "result": result,
         "annotated_video_url": f"/download/{os.path.basename(output_path)}"
-    })
+    }), 203
+
+@app.route('/motion-analysis/save-results', methods=['POST'])
+def save_motion_analysis_results():
+    data = request.get_json()
+    patient_name = data.get('patient_name')
+    result = data.get('result')
+
+    if not patient_name or not result:
+        return jsonify({'error': 'patient name and analysis result required'}), 400
+
+    try:
+        cursor.execute('INSERT INTO patient_analysis (patient_id, analysis_type, value) VALUES (?, ?, ?)', (patient_name, 'motion', result,))
+        conn.commit()
+    except Exception as e:
+        print('Error uploading motion analysis results into db: ', e)
+        return jsonify({"error": "Could not save results to the database."}), 500
+    
+    return jsonify({"message": "Result saved successfully."}), 200
+    
+@app.route('/facial-analysis/save-results', methods=['POST'])
+def save_facial_feature_analysis_results():
+    data = request.get_json()
+    patient_name = data.get('patient_name')
+    result = data.get('result')
+
+    if not patient_name or not result:
+        return jsonify({'error': 'patient name and analysis result required'}), 400
+
+    try:
+        cursor.execute('INSERT INTO patient_analysis (patient_id, analysis_type, value) VALUES (?, ?, ?)', (patient_name, 'facial', result,))
+        conn.commit()
+    except Exception as e:
+        print('Error uploading facial feature analysis results into db: ', e)
+        return jsonify({"error": "Could not save results to the database."}), 500
+    
+    return jsonify({"message": "Result saved successfully."}), 200
 
 if __name__ == '__main__':
     #app.run(debug=True, ssl_context=('./cert.pem', './key.pem'))

@@ -34,6 +34,17 @@ const FacialMapping = ({ patient_name, onComplete }) => {
 
       setResponse(res.data);
       setSubmittedImage(true);
+
+      const resultPayload = {
+        patient_name: patient_name,
+        result:  res.data.significant_change? "Significant change detected": "No significant change detected.",
+      };
+
+      await axios.post("http://localhost:5000/facial-analysis/save-results", resultPayload, {
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
     } catch (err) {
       setError(err.response?.data?.error || "An error occurred.");
     }
