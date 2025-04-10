@@ -135,7 +135,6 @@ def add_new_patient():
         "data": data
     }), 201
     
-
 @app.route('/patients/search', methods=['GET'])
 def get_patient():
     
