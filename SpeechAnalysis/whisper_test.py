@@ -1,6 +1,10 @@
 import whisper
+import time
 
 model = whisper.load_model('base')
-result = model.transcribe('whisper_recording.m4a')
 
+s = time.time()
+result = model.transcribe('videoplayback.m4a')
+e = time.time()
 print(result)
+print(f"Time taken: {e - s} seconds")
