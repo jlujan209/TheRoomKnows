@@ -168,7 +168,6 @@ def delete_patient():
 
 @app.route('/patients/edit', methods=['PUT'])
 def edit_patient():
-    
     data=request.get_json()
     first_name = data.get('patient_first_name')
     last_name = data.get('patient_last_name')
@@ -183,16 +182,22 @@ def edit_patient():
 
 # Web Sockets Routes to handle real-time connections
 @socketio.on('connect')
-def handle_connect():
-    print("Client Connected")
+def handle_connect(data):
+    global patient_name 
+    patient_name = data.get('patient_name', None)
+    if not patient_name:
+        emit("connection_response", {"error": "Patient name is required"})
+        return
+    print(f"Client Connected for patient: {patient_name}")
     start_session()
     print('Session started')
-    emit("connection_response", {"message": "Speech Analysis Session Started"})
+    emit("connection_response", {"message": f"Speech Analysis Session Started for patient: {patient_name}"})
 
 @socketio.on('disconnect')
 def handle_disconnect():
+    global patient_name
     print("Client Disconnected")
-    final_transcripts, emotions = stop_session()
+    final_transcripts, emotions = stop_session(patient_name)
     print(final_transcripts)
     with open("transcripts.txt", "w") as f:
         for transcript in final_transcripts:
@@ -343,7 +348,7 @@ def start_session():
     eventlet.spawn(rotate_and_transcribe)
     # eventlet.spawn(emotion_analysis)
 
-def stop_session():
+def stop_session(patient_name):
     global session_active
     session_active = False
 
@@ -363,7 +368,7 @@ def stop_session():
         json.dump(frequency_analysis, f)
     # save the frequency analysis to the db
     print("writing to db")
-    cursor.execute('INSERT INTO patient_analysis (patient_id, analysis_type, value) VALUES (?,?,?)', (22, 'frequency', json.dumps(frequency_analysis),))
+    cursor.execute('INSERT INTO patient_analysis (patient_id, analysis_type, value) VALUES (?,?,?)', (patient_name, 'frequency', json.dumps(frequency_analysis),))
     # get qa pairs for sentiment analysis
     print("getting qa pairs")
     qas = query_openai(all_text)
@@ -382,7 +387,7 @@ def stop_session():
     with open("sentiment_analysis.json", "w") as f:
         json.dump(sentiment_analyzer, f)
     # save the sentiment analysis to the db
-    cursor.execute('INSERT INTO patient_analysis (patient_id, analysis_type, value) VALUES (?,?,?)', (22, 'sentiment', json.dumps(sentiment_analyzer),))
+    cursor.execute('INSERT INTO patient_analysis (patient_id, analysis_type, value) VALUES (?,?,?)', (patient_name, 'sentiment', json.dumps(sentiment_analyzer),))
 
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     with open(f"emotions_{timestamp}.json", "w") as f:
