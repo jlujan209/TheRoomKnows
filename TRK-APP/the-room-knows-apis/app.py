@@ -4,7 +4,7 @@ import threading
 import requests
 eventlet.monkey_patch()
 
-from flask import Flask, request, jsonify, make_response
+from flask import Flask, request, jsonify, make_response, send_file
 from flask_cors import CORS
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, JWTManager
 from flask_socketio import SocketIO, emit
@@ -38,6 +38,11 @@ from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from reportlab.platypus import Table, TableStyle, Image
 from reportlab.lib import colors
+
+from gait_analyzer import analyze_gait
+
+UPLOAD_FOLDER = 'uploads'
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # Flask app with CORS enabled
 app = Flask(__name__)
@@ -368,7 +373,7 @@ def save_results():
     results = data.get('results')
     patient_name = data.get('patient_name')
     try:
-        cursor.execute('INSERT INTO patient_analysis (patient_id, analysis_type, value) VALUES (?,?,?)', (patient_name, 'emotion', results,))
+        cursor.execute('INSERT INTO patient_analysis (patient_id, analysis_type, value) VALUES (?,?,?)', (patient_name, 'emotion', json.dumps(results),))
         conn.commit()
         return jsonify({"message": "successfully saved results for emotion detection."}), 201
     except Exception as e:
@@ -867,6 +872,40 @@ def generate_pdf_report(freq_analysis_img, symptoms, sentiment_img, emotion_anal
 
     # Save the PDF
     c.save()
+
+# Motion Analysis ----------------------------------------------------------------------------------
+@app.route("/motion-analysis/upload-video", methods=["POST"])
+def motion_analysis():
+    if 'video' not in request.files:
+        return jsonify({"error": "No video file provided"}), 400
+
+    video_file = request.files['video']
+    if video_file.filename == '':
+        return jsonify({"error": "No selected file"}), 400
+
+    # Save the video file to the specified folder
+    save_path = os.path.join(UPLOAD_FOLDER, video_file.filename)
+    video_file.save(save_path)
+
+    # Check file size and OpenCV readability
+    file_size = os.path.getsize(save_path)
+    if file_size == 0:
+        return jsonify({"error": "Uploaded file is empty"}), 400
+
+    cap = cv2.VideoCapture(save_path)
+    if not cap.isOpened():
+        return jsonify({"error": "Failed to open video file with OpenCV"}), 500
+    cap.release()
+
+    # Proceed with gait analysis
+    result, output_path = analyze_gait(save_path, output_dir=UPLOAD_FOLDER)
+    if "error" in result:
+        return jsonify(result), 500
+
+    return jsonify({
+        "result": result,
+        "annotated_video_url": f"/download/{os.path.basename(output_path)}"
+    })
 
 if __name__ == '__main__':
     #app.run(debug=True, ssl_context=('./cert.pem', './key.pem'))
