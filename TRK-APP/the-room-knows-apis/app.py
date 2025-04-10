@@ -40,6 +40,7 @@ from reportlab.platypus import Table, TableStyle, Image, Paragraph
 from reportlab.lib import colors
 
 from gait_analyzer import analyze_gait
+import shutil
 
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -48,6 +49,8 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app = Flask(__name__)
 CORS(app)
 load_dotenv()
+# allow localhost:3000 to access all API endpoints
+CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}})
 
 # For SQLite Connection:
 conn = sqlite3.connect("patients.db", check_same_thread=False)
@@ -59,7 +62,7 @@ jwt = JWTManager(app)
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_KEY')
 
 # For Websocket
-socketio = SocketIO(app, async_mode="eventlet") 
+socketio = SocketIO(app, async_mode="eventlet", cors_allowed_origins="http://localhost:3000")
 
 # SSL
 ssl._create_default_https_context = ssl._create_unverified_context
@@ -181,13 +184,16 @@ def edit_patient():
 # Web Sockets Routes to handle real-time connections
 @socketio.on('connect')
 def handle_connect():
+    print("Client Connected")
     start_session()
     print('Session started')
     emit("connection_response", {"message": "Speech Analysis Session Started"})
 
 @socketio.on('disconnect')
 def handle_disconnect():
+    print("Client Disconnected")
     final_transcripts, emotions = stop_session()
+    print(final_transcripts)
     with open("transcripts.txt", "w") as f:
         for transcript in final_transcripts:
             f.write(transcript + "\n")
@@ -278,7 +284,7 @@ def rotate_and_transcribe():
     global current_audio_file
 
     while session_active:
-        eventlet.sleep(240)  # Wait 4 minutes
+        eventlet.sleep(30)  # Wait 4 minutes, temp change to 30 seconds
         if not session_active:
             break
 
@@ -287,6 +293,7 @@ def rotate_and_transcribe():
             current_audio_file.close()
 
         # Spawn transcription task
+        print("spawing transcription task")
         eventlet.spawn(transcribe_audio_file, old_file)
 
         # Create new file for continued recording
@@ -334,7 +341,7 @@ def start_session():
     transcripts = []
     eventlet.spawn(record_audio)
     eventlet.spawn(rotate_and_transcribe)
-    eventlet.spawn(emotion_analysis)
+    # eventlet.spawn(emotion_analysis)
 
 def stop_session():
     global session_active
@@ -351,15 +358,31 @@ def stop_session():
     # run frequency analysis on the text
     frequency_analysis = perform_frequency_analysis(all_text)
     # write the frequency analysis to a file
+    print("writing to file")
     with open("frequency_analysis.json", "w") as f:
         json.dump(frequency_analysis, f)
+    # save the frequency analysis to the db
+    print("writing to db")
+    cursor.execute('INSERT INTO patient_analysis (patient_id, analysis_type, value) VALUES (?,?,?)', (22, 'frequency', json.dumps(frequency_analysis),))
     # get qa pairs for sentiment analysis
+    print("getting qa pairs")
     qas = query_openai(all_text)
     # perform sentiment analysis on the text
-    sentiment_analyzer = perform_sentiment_analysis(qas)
+    print("performing sentiment analysis")
+    try:
+        sentiment_analyzer = perform_sentiment_analysis(qas)
+    except Exception as e:
+        print(f"Error in sentiment analysis: {e}")
+        sentiment_analyzer = {
+            'positive': 0,
+            'negative': 0,
+            'neutral': 0,
+        }
     # write the sentiment analysis to a file
     with open("sentiment_analysis.json", "w") as f:
         json.dump(sentiment_analyzer, f)
+    # save the sentiment analysis to the db
+    cursor.execute('INSERT INTO patient_analysis (patient_id, analysis_type, value) VALUES (?,?,?)', (22, 'sentiment', json.dumps(sentiment_analyzer),))
 
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     with open(f"emotions_{timestamp}.json", "w") as f:
@@ -378,9 +401,6 @@ def save_results():
         return jsonify({"message": "successfully saved results for emotion detection."}), 201
     except Exception as e:
         return jsonify({"error": e}), 500
-
-
-
 
 ### Facial Mapping -------------------------------------------------------------------------------
 def save_image_with_landmarks(image, landmarks, output_path):
@@ -459,9 +479,6 @@ def check_significant_changes(current_landmarks, previous_landmarks, threshold=0
     if average_change > threshold:
         return True, average_change
     return False, average_change
-
-
-
 
 def calculate_asymmetry(landmarks):
     """
@@ -696,8 +713,6 @@ def generate_report(patient_id: str):
             rows[1] = json.loads(rows[1]['value'])
             change_detected_in = []
             
-            
-
             if abs(rows[0]['neutral'] - rows[1]['neutral']) > 10:
                 change_detected_in.append("neutral")
             if abs(rows[0]['happy'] - rows[1]['happy']) > 10:
@@ -883,8 +898,7 @@ def generate_report(patient_id: str):
     else:
         facial_conclusion = rows[0]['value']
 
-
-    generate_pdf_report(
+    filepath = generate_pdf_report(
         f"graphs/{patient_id}_frequency_analysis.png", 
         freq_data, 
         f"graphs/{patient_id}_sentiment_analysis.png",
@@ -901,6 +915,7 @@ def generate_report(patient_id: str):
 
     return jsonify({
         "message": f"Report generated successfully in {elapsed_time:.2f} seconds",
+        "filepath": filepath,
         "emotion_analysis": {
             "conclusion": emotion_conclusion,
             "image": f"{patient_id}_emotion_analysis.png"
@@ -912,7 +927,8 @@ def generate_report(patient_id: str):
     }), 200
 
 def generate_pdf_report(freq_analysis_img, symptoms, sentiment_img, sentiment_conclusion, emotion_analysis_img, emotion_conclusion, facial_conclusion, motion_conclusion, ai_assessment):
-    c = canvas.Canvas("report.pdf", pagesize=letter)
+    outfile_name = f"report_{int(time.time())}.pdf"
+    c = canvas.Canvas(outfile_name, pagesize=letter)
     width, height = letter
     cur_y = height - 50
 
@@ -998,6 +1014,8 @@ def generate_pdf_report(freq_analysis_img, symptoms, sentiment_img, sentiment_co
 
     # Save the PDF
     c.save()
+    shutil.copy(outfile_name, f"/the-room-knows-ui/public/")
+    return f"/the-room-knows-ui/public/{outfile_name}"
 
 # Motion Analysis ----------------------------------------------------------------------------------
 @app.route("/motion-analysis/upload-video", methods=["POST"])
