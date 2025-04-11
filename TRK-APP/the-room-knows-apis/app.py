@@ -723,6 +723,7 @@ def generate_report(patient_id: str):
     else:
         emotion_conclusion = ""
         rows[0] = json.loads(rows[0]['value'])
+        e_data = rows[0]
         # find the dominant emotion in the first row (most recent analysis)
         m = 0
         dominant_emotion = None
@@ -732,7 +733,6 @@ def generate_report(patient_id: str):
                 dominant_emotion = key
         emotion_conclusion += f"The predominant emotion in this visit was {dominant_emotion}. "
         if len(rows) > 1:
-            e_data = rows[0]
             rows[1] = json.loads(rows[1]['value'])
             change_detected_in = []
             
@@ -882,19 +882,22 @@ def generate_report(patient_id: str):
     if chat_message == '':
         return jsonify({"error": "No data found for patient"}), 404
     
-    print(chat_message)
-    client = openai.OpenAI(api_key=OPENAI_API_KEY)
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": "You are a helpful assistant to a doctor. I will give you a list of symptoms and the number of times they were reported. "
-                                        "Their relative sentiment anslysis (positive, negative, neutral) and the emotion analysis (happy, sad, angry, surprise, neutral). "
-                                        "You will provide a conclusion about the patient's condition based on this data and write recommendations for the doctor."},
-            {"role": "user", "content": chat_message},
-        ]
-    )
-    chat_response = response.choices[0].message.content
-    print(chat_response)
+    if False:
+        print(chat_message)
+        client = openai.OpenAI(api_key=OPENAI_API_KEY)
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant to a doctor. I will give you a list of symptoms and the number of times they were reported. "
+                                            "Their relative sentiment anslysis (positive, negative, neutral) and the emotion analysis (happy, sad, angry, surprise, neutral). "
+                                            "You will provide a conclusion about the patient's condition based on this data and write recommendations for the doctor."},
+                {"role": "user", "content": chat_message},
+            ]
+        )
+        chat_response = response.choices[0].message.content
+        print(chat_response)
+    else:
+        chat_response = "None"
 
     # get the most recent motion analysis
     cursor.execute('''
@@ -1038,7 +1041,10 @@ def generate_pdf_report(freq_analysis_img, symptoms, sentiment_img, sentiment_co
 
     # Save the PDF
     c.save()
-    shutil.copy(outfile_name, r"C:\Users\Lujan\Documents\GitHub\TheRoomKnows\TRK-APP\the-room-knows-ui\public")
+    skyler_path = r"C:\Users\skyle\Documents\SeniorDesign\TheRoomKnows\TRK-APP\the-room-knows-ui\public" 
+    jorge_path = r"C:\Users\Lujan\Documents\GitHub\TheRoomKnows\TRK-APP\the-room-knows-ui\public"
+    trk_path = ''
+    shutil.copy(outfile_name, skyler_path)
     return f"/the-room-knows-ui/public/{outfile_name}"
 
 # Motion Analysis ----------------------------------------------------------------------------------
