@@ -521,6 +521,17 @@ def check_asymmetry_changes(current_asymmetry, previous_asymmetry, thresholds):
     print(f"Detected changes: {changes}")
     return changes
 
+@app.route('/drop-all-analysis-tables', methods=['GET'])
+def drop_all_analysis_tables():
+    cursor.execute('''
+    DELETE FROM patient_analysis
+    ''')
+    conn.commit()
+    return jsonify({
+        "message" : "all analysis tables dropped",
+        "data": "data"
+    }), 201
+                   
 @app.route('/load-test-data', methods=['GET'])
 def load_test_data():
     # drop all rows from patient_analysis
@@ -735,14 +746,14 @@ def generate_report(patient_id: str):
                 emotion_conclusion += ", ".join(change_detected_in) + '. '
         
     
-    # create a plot of most recent visit
-    plt.figure(figsize=(10, 6))
-    plt.bar(rows[0].keys(), rows[0].values())
-    plt.title(f"Patient {patient_id} Emotions")
-    plt.xlabel("Emotions")
-    plt.ylabel("Count")
-    plt.savefig(f"graphs/{patient_id}_emotion_analysis.png")
-    plt.close()
+        # create a plot of most recent visit
+        plt.figure(figsize=(10, 6))
+        plt.bar(rows[0].keys(), rows[0].values())
+        plt.title(f"Patient {patient_id} Emotions")
+        plt.xlabel("Emotions")
+        plt.ylabel("Count")
+        plt.savefig(f"graphs/{patient_id}_emotion_analysis.png")
+        plt.close()
 
     # get the most recent frequency analysis
     cursor.execute('''
@@ -755,6 +766,7 @@ def generate_report(patient_id: str):
     rows = sorted(rows, key=lambda x: x['created_date'], reverse=True)
     if len(rows) == 0:
         frequency_conclusion = "No frequency analysis was recorded."
+        freq_data = None
     else:
         new_rows = []
         freq_data = json.loads(rows[0]['value'])
@@ -814,6 +826,7 @@ def generate_report(patient_id: str):
     rows = sorted(rows, key=lambda x: x['created_date'], reverse=True)
     if len(rows) == 0: # no sentiment analysis data found
         sentiment_conclusion = "no sentiment analysis was recorded"
+        rows = None
     else: # data found
         def avg_sentiment(r):
             total = r['positive'] + r['negative'] + r['neutral']
@@ -858,7 +871,6 @@ def generate_report(patient_id: str):
         chat_message += 'Symptom Frequency: ' + str(freq_data['patient_symptoms']) + '\n'
     if rows is not None:
         chat_message += 'Sentiment Analysis: ' + str(rows[0]) + '\n'
-
 
     if chat_message == '':
         return jsonify({"error": "No data found for patient"}), 404
