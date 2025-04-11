@@ -78,6 +78,7 @@ users = {
     "username": "password"
 }
 
+
 # stuff skyler added for emotion and audio stuff
 current_audio_file = None
 current_file_lock = threading.Lock()
@@ -182,9 +183,11 @@ def edit_patient():
 
 # Web Sockets Routes to handle real-time connections
 @socketio.on('connect')
-def handle_connect(data):
-    global patient_name 
-    patient_name = data.get('patient_name', None)
+def handle_connect():
+    global ANALYSIS_PATIENT_NAME 
+    ANALYSIS_PATIENT_NAME = request.args.get('patient_name', '')
+    patient_name = ANALYSIS_PATIENT_NAME
+    print(f"patient name: {patient_name}")  
     if not patient_name:
         emit("connection_response", {"error": "Patient name is required"})
         return
@@ -195,7 +198,8 @@ def handle_connect(data):
 
 @socketio.on('disconnect')
 def handle_disconnect():
-    global patient_name
+    global ANALYSIS_PATIENT_NAME
+    patient_name = ANALYSIS_PATIENT_NAME
     print("Client Disconnected")
     final_transcripts, emotions = stop_session(patient_name)
     print(final_transcripts)
@@ -205,6 +209,7 @@ def handle_disconnect():
     with open("emotions.json", "w") as f:
         json.dump(emotions, f)
     print("Client Disconnected, Speech Analysis Session has ended")
+    ANALYSIS_PATIENT_NAME = ''
 
 
 @app.route("/analysis/emotion-detection", methods=["POST"])
@@ -351,6 +356,7 @@ def start_session():
 def stop_session(patient_name):
     global session_active
     session_active = False
+    print("!!!!!STOPPING SESSION!!!!!!")
 
     # Finalize last chunk
     with current_file_lock:
@@ -392,6 +398,7 @@ def stop_session(patient_name):
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     with open(f"emotions_{timestamp}.json", "w") as f:
         json.dump(emotions, f)
+    print("!!!!! SESSION STOPPED !!!!!--")
 
     return all_text, emotions
 
@@ -725,20 +732,20 @@ def generate_report(patient_id: str):
                 dominant_emotion = key
         emotion_conclusion += f"The predominant emotion in this visit was {dominant_emotion}. "
         if len(rows) > 1:
-            e_data = json.loads(rows[0]['value'])
+            e_data = rows[0]
             rows[1] = json.loads(rows[1]['value'])
             change_detected_in = []
             
-            if abs(rows[0]['neutral'] - rows[1]['neutral']) > 10:
-                change_detected_in.append("neutral")
-            if abs(rows[0]['happy'] - rows[1]['happy']) > 10:
-                change_detected_in.append("happy")
-            if abs(rows[0]['sad'] - rows[1]['sad']) > 10:
-                change_detected_in.append("sad")
-            if abs(rows[0]['angry'] - rows[1]['angry']) > 10:
-                change_detected_in.append("angry")
-            if abs(rows[0]['surprise'] - rows[1]['surprise']) > 10:
-                change_detected_in.append("surprise")
+            if abs(rows[0]['Neutral'] - rows[1]['Neutral']) > 10:
+                change_detected_in.append("Neutral")
+            if abs(rows[0]['Happy'] - rows[1]['Happy']) > 10:
+                change_detected_in.append("Happy")
+            if abs(rows[0]['Sad'] - rows[1]['Sad']) > 10:
+                change_detected_in.append("Sad")
+            if abs(rows[0]['Angry'] - rows[1]['Angry']) > 10:
+                change_detected_in.append("Angry")
+            if abs(rows[0]['Surprise'] - rows[1]['Surprise']) > 10:
+                change_detected_in.append("Surprise")
             if len(change_detected_in) == 0:
                 emotion_conclusion = "No significant change detected from previous visit. "
             else:
@@ -1031,7 +1038,7 @@ def generate_pdf_report(freq_analysis_img, symptoms, sentiment_img, sentiment_co
 
     # Save the PDF
     c.save()
-    shutil.copy(outfile_name, f"/the-room-knows-ui/public/")
+    shutil.copy(outfile_name, r"C:\Users\Lujan\Documents\GitHub\TheRoomKnows\TRK-APP\the-room-knows-ui\public")
     return f"/the-room-knows-ui/public/{outfile_name}"
 
 # Motion Analysis ----------------------------------------------------------------------------------
