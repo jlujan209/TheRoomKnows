@@ -394,7 +394,7 @@ def stop_session(patient_name):
         json.dump(sentiment_analyzer, f)
     # save the sentiment analysis to the db
     cursor.execute('INSERT INTO patient_analysis (patient_id, analysis_type, value) VALUES (?,?,?)', (patient_name, 'sentiment', json.dumps(sentiment_analyzer),))
-
+    conn.commit()
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     with open(f"emotions_{timestamp}.json", "w") as f:
         json.dump(emotions, f)
