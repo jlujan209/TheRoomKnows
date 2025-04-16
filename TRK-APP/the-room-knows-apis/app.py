@@ -239,10 +239,15 @@ def predict_emotion():
 def record_audio():
     global current_audio_file
 
-    device = sd.query_devices(kind='input')
+    device = sd.query_devices()
+    print(device)
+    device = device[12]
+    print(device)
     mic = device['name']
+    print(mic)
 
     while session_active:
+        print("[AUDIO]: Started Recording")
         with tempfile.NamedTemporaryFile(dir='./tmp', delete=False, suffix=".wav") as tmpfile:
             filename = tmpfile.name
 
@@ -369,7 +374,7 @@ def stop_session(patient_name):
     # run frequency analysis on the text
     frequency_analysis = perform_frequency_analysis(all_text)
     # write the frequency analysis to a file
-    print("writing to file")
+    print(f"writing {frequency_analysis} to file")
     with open("frequency_analysis.json", "w") as f:
         json.dump(frequency_analysis, f)
     # save the frequency analysis to the db
@@ -1043,8 +1048,8 @@ def generate_pdf_report(freq_analysis_img, symptoms, sentiment_img, sentiment_co
     c.save()
     skyler_path = r"C:\Users\skyle\Documents\SeniorDesign\TheRoomKnows\TRK-APP\the-room-knows-ui\public" 
     jorge_path = r"C:\Users\Lujan\Documents\GitHub\TheRoomKnows\TRK-APP\the-room-knows-ui\public"
-    trk_path = ''
-    shutil.copy(outfile_name, skyler_path)
+    trk_path = r'C:\Users\wired\OneDrive\Desktop\voiceToText\TheRoomKnows\TRK-APP\the-room-knows-ui\public'
+    shutil.copy(outfile_name, trk_path)
     return f"/the-room-knows-ui/public/{outfile_name}"
 
 # Motion Analysis ----------------------------------------------------------------------------------

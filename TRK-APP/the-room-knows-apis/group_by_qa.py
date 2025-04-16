@@ -151,6 +151,7 @@ def perform_frequency_analysis(text: dict):
     '''
     given the text from whisperai, perform frequency analysis using the assistant elyssa made
     '''
+    print(f"TEXT IN GROUP BY QA: {text}")
     openai.organization = os.getenv("OPENAI_ORG")
     openai.api_key = KEY
     openai.project = os.getenv("OPENAI_PROJ")

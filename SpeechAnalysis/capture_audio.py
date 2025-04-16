@@ -1,5 +1,5 @@
 import sounddevice as sd
-import soundfile as sf
+# import soundfile as sf
 
 def record_audio(filename, stop_event, device, channels, samplerate=44100):
     print("Recording audio...")
@@ -21,3 +21,6 @@ def list_audio_devices():
     for idx, dev in enumerate(input_devices):
         print(f"{idx}: {dev['name']} (Max Channels: {dev['max_input_channels']})")
     return input_devices
+
+if __name__ == "__main__":
+    list_audio_devices()
