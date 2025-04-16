@@ -238,10 +238,12 @@ def predict_emotion():
 
 def record_audio():
     global current_audio_file
-
-    device = sd.query_devices(kind='input')
-    mic = device['name']
-
+    devices = sd.query_devices()
+    hostapi = sd.query_hostapis()
+    # get index of WASAPI hostapi
+    wasapi_index = next((idx for idx, api in enumerate(hostapi) if api['name'] == 'Windows WASAPI'), None)
+    device_name = "Microphone (NVIDIA Broadcast)"
+    mic = next((idx for idx, dev in enumerate(reversed(devices)) if (dev['name'] == device_name and dev['hostapi'] == wasapi_index)), None)
     while session_active:
         with tempfile.NamedTemporaryFile(dir='./tmp', delete=False, suffix=".wav") as tmpfile:
             filename = tmpfile.name
@@ -254,7 +256,7 @@ def record_audio():
             with current_file_lock:
                 current_audio_file.write(indata)
 
-        with sd.InputStream(samplerate=44100, channels=1, device=mic, callback=callback):
+        with sd.InputStream(samplerate=44100, device=mic, channels=1, callback=callback):
             print(f"[AUDIO] Recording to {filename}")
             while session_active:
                 eventlet.sleep(0.1)
@@ -867,7 +869,7 @@ def generate_report(patient_id: str):
         plt.bar(r1.keys(), r1.values())
         plt.title(f"Patient {patient_id} Sentiment Analysis")
         plt.xlabel("Sentiment")
-        plt.ylabel("Count")
+        plt.ylabel("Proportion")
         plt.savefig(f"graphs/{patient_id}_sentiment_analysis.png")
         plt.close()
     
