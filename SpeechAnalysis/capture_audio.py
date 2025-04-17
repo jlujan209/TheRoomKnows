@@ -2,7 +2,7 @@ import sounddevice as sd
 import soundfile as sf
 import threading
 
-def record_audio(filename, stop_event, device, channels, samplerate=44100):
+def record_audio(filename, stop_event, device, channels, samplerate=48000):
     print("Recording audio...")
     with sf.SoundFile(filename, mode='w', samplerate=samplerate, channels=channels) as file:
         def callback(indata, frames, time, status):
@@ -29,19 +29,14 @@ def list_audio_devices():
 
 stop_event = threading.Event()
 
-list_audio_devices()
-x = input("Select input device and press Enter\n\t1) NVIDIA Broadcast\n\t2) USB PnP Audio Device\n")
-print(f"You selected {x}")
-if x == "1":
-    device_name = "Microphone (NVIDIA Broadcast)"
-if x == "2":
-    device_name = "Microphone (2- USB PnP Audio Device)"
-else:
-    print("Invalid selection. Defaulting to NVIDIA Broadcast.")
-    device_name = "Microphone (NVIDIA Broadcast)"
+devices = list_audio_devices()
+# x = input("Select input device and press Enter\n\t1) NVIDIA Broadcast\n\t2) USB PnP Audio Device\n")
+# print(f"You selected {x}")
+device_name = "Microphone (NVIDIA Broadcast)"
+device_name = "Line (AudioBox USB 96)"
 
 # Find the device index by name
-devices = sd.query_devices()
+# devices = sd.query_devices()
 hostapi = sd.query_hostapis()
 # get index of WASAPI hostapi
 wasapi_index = next((idx for idx, api in enumerate(hostapi) if api['name'] == 'Windows WASAPI'), None)
@@ -49,8 +44,8 @@ if wasapi_index is None:
     print("WASAPI host API not found.")
     exit(1)
 
-device = next((idx for idx, dev in enumerate(reversed(devices)) if (dev['name'] == device_name and dev['hostapi'] == wasapi_index)), None)
-
+device = next((idx for idx, dev in enumerate(devices) if (dev['name'] == device_name and dev['hostapi'] == wasapi_index)), None)
+print(device)
 if device is None:
     print(f"Device '{device_name}' not found.")
 else:

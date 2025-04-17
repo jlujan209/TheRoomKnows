@@ -235,15 +235,26 @@ def predict_emotion():
 
     return jsonify({"emotion": emotion, "confidence": float(np.max(prediction))})
 
+def list_audio_devices():
+    print("Available host apis:")
+    apis = sd.query_hostapis()
+    for idx, api in enumerate(apis):
+        print(f"{idx}: {api['name']}")
+    print("\nAvailable audio input devices:\n")
+    devices = sd.query_devices()
+    input_devices = [dev for dev in devices if dev['max_input_channels'] > 0]
+    for idx, dev in enumerate(input_devices):
+        print(f"{idx}: {dev['name']} - {dev['hostapi']}")
+    return input_devices
 
 def record_audio():
     global current_audio_file
-    devices = sd.query_devices()
+    devices = list_audio_devices()
     hostapi = sd.query_hostapis()
     # get index of WASAPI hostapi
     wasapi_index = next((idx for idx, api in enumerate(hostapi) if api['name'] == 'Windows WASAPI'), None)
-    device_name = "Microphone (NVIDIA Broadcast)"
-    mic = next((idx for idx, dev in enumerate(reversed(devices)) if (dev['name'] == device_name and dev['hostapi'] == wasapi_index)), None)
+    device_name = "Line (AudioBox USB 96)"
+    mic = next((idx for idx, dev in enumerate(devices) if (dev['name'] == device_name and dev['hostapi'] == wasapi_index)), None)
     while session_active:
         with tempfile.NamedTemporaryFile(dir='./tmp', delete=False, suffix=".wav") as tmpfile:
             filename = tmpfile.name
@@ -1045,8 +1056,8 @@ def generate_pdf_report(freq_analysis_img, symptoms, sentiment_img, sentiment_co
     c.save()
     skyler_path = r"C:\Users\skyle\Documents\SeniorDesign\TheRoomKnows\TRK-APP\the-room-knows-ui\public" 
     jorge_path = r"C:\Users\Lujan\Documents\GitHub\TheRoomKnows\TRK-APP\the-room-knows-ui\public"
-    trk_path = ''
-    shutil.copy(outfile_name, skyler_path)
+    trk_path = r'C:\Users\wired\OneDrive\Desktop\voiceToText\TheRoomKnows\TRK-APP\the-room-knows-ui\public'
+    shutil.copy(outfile_name, trk_path)
     return f"/the-room-knows-ui/public/{outfile_name}"
 
 # Motion Analysis ----------------------------------------------------------------------------------
