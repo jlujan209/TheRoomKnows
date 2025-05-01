@@ -42,6 +42,8 @@ from reportlab.lib import colors
 from gait_analyzer import analyze_gait
 import shutil
 
+from facenet_pytorch import MTCNN
+
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
@@ -100,6 +102,9 @@ model = whisper.load_model('base')
 print(tensorflow.__version__)
 ed_model = tensorflow.keras.models.load_model("emotion_detection.keras")
 emotion_labels = ["Angry", "Happy", "Neutral", "Sad", "Surprise"]
+
+# Face Detector Model
+face_detector = MTCNN(keep_all=False)
 
 @app.route('/')
 def index():
@@ -211,6 +216,29 @@ def handle_disconnect():
     print("Client Disconnected, Speech Analysis Session has ended")
     ANALYSIS_PATIENT_NAME = ''
 
+def detect_and_crop_single_face(image: np.ndarray, output_path=None):
+    # Detect faces
+    boxes, _ = face_detector.detect(image)
+
+    if boxes is None:
+        print("No faces detected.")
+        return None
+
+    if len(boxes) > 1:
+        print("Multiple faces detected.")
+        return None
+
+    # Only one face detected, crop it
+    x1, y1, x2, y2 = map(int, boxes[0])
+    face = image[y1:y2, x1:x2]
+    # face = image.crop((x1, y1, x2, y2))
+
+    # Save the cropped face if an output path is provided
+    if output_path:
+        face.save(output_path)
+        print(f"Cropped face saved to {output_path}")
+
+    return face
 
 @app.route("/analysis/emotion-detection", methods=["POST"])
 def predict_emotion():
@@ -223,15 +251,18 @@ def predict_emotion():
         np_arr = np.frombuffer(image_bytes, np.uint8)
         image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
         #image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        image = cv2.resize(image, (224, 224))
+        image = detect_and_crop_single_face(image)
+        # cut image to 224 x 224 px
+        image = cv2.resize(image, (224, 224))        
         image = image / 255.0
         image = np.expand_dims(image, axis=-1)
         image = np.expand_dims(image, axis=0) 
 
         prediction = ed_model.predict(image)
+        print("[EMOTION] PREDICTION: ", prediction)
         emotion = emotion_labels[np.argmax(prediction)]
-    except:
-        return jsonify({"error": "Failed to predict emotion"})
+    except Exception as e:
+        return jsonify({"error": f"Failed to predict emotion {e}"})
 
     return jsonify({"emotion": emotion, "confidence": float(np.max(prediction))})
 
@@ -380,15 +411,21 @@ def stop_session(patient_name):
     all_text = " ".join(transcripts)
     print(f"[TRANSCRIBE] All text: {all_text}")
     # run frequency analysis on the text
-    frequency_analysis = perform_frequency_analysis(all_text)
-    # write the frequency analysis to a file
-    print("writing to file")
-    with open("frequency_analysis.json", "w") as f:
-        json.dump(frequency_analysis, f)
-    # save the frequency analysis to the db
-    print("writing to db")
-    cursor.execute('INSERT INTO patient_analysis (patient_id, analysis_type, value) VALUES (?,?,?)', (patient_name, 'frequency', json.dumps(frequency_analysis),))
-    # get qa pairs for sentiment analysis
+    if all_text.strip():
+        frequency_analysis = perform_frequency_analysis(all_text)
+    else:
+        frequency_analysis = None
+    if frequency_analysis is None:
+        print("ERROR WITH FREQUENCY ANALYSIS")
+    else:
+        # write the frequency analysis to a file
+        print("writing to file")
+        with open("frequency_analysis.json", "w") as f:
+            json.dump(frequency_analysis, f)
+        # save the frequency analysis to the db
+        print("writing to db")
+        cursor.execute('INSERT INTO patient_analysis (patient_id, analysis_type, value) VALUES (?,?,?)', (patient_name, 'frequency', json.dumps(frequency_analysis),))
+        # get qa pairs for sentiment analysis
     print("getting qa pairs")
     qas = query_openai(all_text)
     # perform sentiment analysis on the text

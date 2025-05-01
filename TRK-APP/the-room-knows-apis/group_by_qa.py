@@ -182,7 +182,12 @@ def perform_frequency_analysis(text: dict):
             print(f"Assistant: {m.content}")
             response = m.content[0].dict()['text']['value']
             break
-    clean_json_str = response.strip('` \n')[4:]  # removes "```json\\n"
+    try:
+        clean_json_str = response.strip('` \n')[4:]  # removes "```json\\n"
+    except:
+        print("failed getting freq analysis")
+        return None
+
     data = json.loads(clean_json_str)
     return data
     
