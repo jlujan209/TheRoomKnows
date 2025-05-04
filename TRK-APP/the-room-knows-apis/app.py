@@ -38,6 +38,22 @@ from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from reportlab.platypus import Table, TableStyle, Image, Paragraph
 from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from markdown import markdown
+from bs4 import BeautifulSoup
+from dateutil.relativedelta import relativedelta
+
+import re
+import seaborn as sns
+import random
+import math
+from datetime import timedelta
+import glob
+
+pdfmetrics.registerFont(TTFont('Verdana', 'verdana.ttf'))
+pdfmetrics.registerFont(TTFont('Verdana-Bold', 'verdanab.ttf'))
 
 from gait_analyzer import analyze_gait
 import shutil
@@ -77,7 +93,8 @@ API_KEY = os.getenv('API_KEY')
 # Dummy user db for dev
 # TODO: Create user database with hashing
 users = {
-    "username": "password"
+    "username": "password",
+    "hi" : "bye"
 }
 
 
@@ -100,7 +117,7 @@ model = whisper.load_model('base')
 
 # Emotion Detection Model
 print(tensorflow.__version__)
-ed_model = tensorflow.keras.models.load_model("emotion_detection.keras")
+#ed_model = tensorflow.keras.models.load_model("emotion_detection.keras")
 emotion_labels = ["Angry", "Happy", "Neutral", "Sad", "Surprise"]
 
 # Face Detector Model
@@ -112,17 +129,24 @@ def index():
 
 @app.route('/login', methods=['POST'])
 def login():
-    data = request.json
-    username = data.get("username")
-    password = data.get("password")
+    try:
+        data = request.get_json(force=True, silent=True) or {}
+        print("Parsed login JSON:", data)
 
-    # Check if user exists and password matches
-    if username in users and users[username] == password:
-        token = create_access_token(identity=username)
-        return jsonify(access_token=token), 200
+        username = data.get("username")
+        password = data.get("password")
 
-    return jsonify({"error": "Invalid credentials"}), 401
+        print(f"Login attempt -> username: {username}, password: {password}")
 
+        # Replace with your actual auth logic
+        if username == "admin" and password == "secret":
+            return jsonify({"access_token": "mocked-jwt-token"}), 200
+        else:
+            return jsonify({"error": "Invalid credentials"}), 401
+
+    except Exception as e:
+        print("Login error:", e)
+        return jsonify({"error": "Server error", "details": str(e)}), 500
 
 @app.route('/patients/all', methods=['GET'])
 def get_all_patients(): 
@@ -755,6 +779,57 @@ def upload_image():
         print("Error processing image:", e)
         return jsonify({"error": str(e)}), 500
 
+def get_latest_facial_image(patient_id):
+    files = glob.glob(f"./images/{patient_id}_landmarks_*.png")
+    if not files:
+        return "./uploads/facialanalysis.png"  # fallback
+    return max(files, key=os.path.getctime)  # latest by creation time
+
+def parse_ai_assessment(ai_assessment):
+    """
+    Splits the AI assessment text into Summary, Diagnosis, Conclusion, and Recommendations.
+    """
+    sections = {
+        "summary": "",
+        "diagnosis": "",
+        "conclusion": "",
+        "recommendations": ""
+    }
+
+    # Normalize whitespace and split into paragraphs
+    paragraphs = [p.strip() for p in ai_assessment.split('\n') if p.strip()]
+
+    # Pattern-based extraction
+    current_section = None
+    for para in paragraphs:
+        lower_para = para.lower()
+        if "summary:" in lower_para:
+            current_section = "summary"
+            sections[current_section] = para.split(":", 1)[-1].strip()
+        elif "diagnosis:" in lower_para:
+            current_section = "diagnosis"
+            sections[current_section] = para.split(":", 1)[-1].strip()
+        elif "conclusion:" in lower_para:
+            current_section = "conclusion"
+            sections[current_section] = para.split(":", 1)[-1].strip()
+        elif "recommendation" in lower_para:
+            current_section = "recommendations"
+            sections[current_section] = para.split(":", 1)[-1].strip()
+        elif current_section:
+            sections[current_section] += " " + para.strip()
+
+    # Format recommendations with newlines between points
+    if sections["recommendations"]:
+        bullet_points = re.split(r'(?=\d\.\s)', sections["recommendations"])
+        sections["recommendations"] = "\n".join(bp.strip() for bp in bullet_points if bp.strip())
+
+    return (
+        "Summary: " + sections["summary"],
+        "Diagnosis: " + sections["diagnosis"],
+        "Conclusion: " + sections["conclusion"],
+        "Recommendations:\n" + sections["recommendations"]
+    )
+
 @app.route('/generate-report/<patient_id>', methods=['GET'])
 def generate_report(patient_id: str):
     start_time = time.time()
@@ -772,8 +847,7 @@ def generate_report(patient_id: str):
         e_data = None
     else:
         emotion_conclusion = ""
-        rows[0] = json.loads(rows[0]['value'])
-        e_data = rows[0]
+        #rows[0] = json.loads(rows[0]['value'])
         # find the dominant emotion in the first row (most recent analysis)
         m = 0
         dominant_emotion = None
@@ -783,7 +857,8 @@ def generate_report(patient_id: str):
                 dominant_emotion = key
         emotion_conclusion += f"The predominant emotion in this visit was {dominant_emotion}. "
         if len(rows) > 1:
-            rows[1] = json.loads(rows[1]['value'])
+            e_data = rows[0]
+            #rows[1] = json.loads(rows[1]['value'])
             change_detected_in = []
             
             if abs(rows[0]['Neutral'] - rows[1]['Neutral']) > 10:
@@ -803,14 +878,28 @@ def generate_report(patient_id: str):
                 emotion_conclusion += ", ".join(change_detected_in) + '. '
         
     
-        # create a plot of most recent visit
-        plt.figure(figsize=(10, 6))
-        plt.bar(rows[0].keys(), rows[0].values())
-        plt.title(f"Patient {patient_id} Emotions")
-        plt.xlabel("Emotions")
-        plt.ylabel("Count")
-        plt.savefig(f"graphs/{patient_id}_emotion_analysis.png")
-        plt.close()
+    # create a plot of most recent visit
+    emotion_keys = list(rows[0].keys())
+    emotion_values = list(rows[0].values())
+
+    emotion_table_data = [["Emotion", "%"]]
+    total = sum(rows[0].values())
+    for key, val in rows[0].items():
+        percent = round((val / total) * 100)
+        emotion_table_data.append([key, f"{percent}%"])
+
+
+    # Gradient blue colors
+    colors = sns.color_palette("Blues", n_colors=len(emotion_keys))
+
+    plt.figure(figsize=(10, 8), dpi = 200)
+    plt.bar(emotion_keys, emotion_values, color=colors)
+    plt.title(f"Patient {patient_id} Emotions")
+    plt.xlabel("Emotions")
+    plt.ylabel("Count")
+    plt.tight_layout()
+    plt.savefig(f"graphs/{patient_id}_emotion_analysis.png", dpi=200)
+    plt.close()
 
     # get the most recent frequency analysis
     cursor.execute('''
@@ -818,15 +907,33 @@ def generate_report(patient_id: str):
     AND analysis_type = 'frequency'
     ''', (patient_id,))
 
+    df['date'] = pd.to_datetime(df['date'])  # ensure 'date' is datetime for consistency
+
+    df_monthly = df.groupby([pd.Grouper(key='date', freq='M'), 'symptom'])['count'].sum().reset_index()
+    df_pivot = df_monthly.pivot_table(index='date', columns='symptom', values='count', aggfunc='sum').fillna(0)
+
+
+    rows = []
+    grouped = df.groupby('date')
+    for date, group in grouped:
+        patient_symptoms = [{"symptom": row['symptom'], "count": row['count']} for _, row in group.iterrows()]
+        rows.append({
+            "created_date": date.strftime("%Y-%m-%d"),
+            "value": json.dumps({"patient_symptoms": patient_symptoms})
+        })
+
+
     # get the most recent row by date
-    rows = cursor.fetchall()
-    rows = sorted(rows, key=lambda x: x['created_date'], reverse=True)
+    # unblock stuff here
+    # rows = cursor.fetchall()
+    # rows = sorted(rows, key=lambda x: x['created_date'], reverse=True)
     if len(rows) == 0:
         frequency_conclusion = "No frequency analysis was recorded."
         freq_data = None
     else:
         new_rows = []
-        freq_data = json.loads(rows[0]['value'])
+        rows = sorted(rows, key=lambda x: x['created_date'], reverse=True)  # descending order
+        freq_data = json.loads(rows[0]['value'])  # most recent row
         print("Frequency Analysis Data:")
         print(freq_data)
         print(rows)
@@ -853,13 +960,19 @@ def generate_report(patient_id: str):
 
         # Pivot the DataFrame to have a column for each symptom
         df_pivot = df.pivot_table(index='date', columns='symptom', values='count', aggfunc='sum').fillna(0)
+        
 
         # Plotting
         plt.figure(figsize=(10, 6))
 
-        # Plot each symptom's count over time
-        for symptom in df_pivot.columns:
-            plt.plot(df_pivot.index, df_pivot[symptom], label=symptom)
+        sns.set_theme(style="whitegrid")
+        palette = sns.color_palette("Blues", n_colors=len(df_pivot.columns))
+
+        plt.figure(figsize=(10, 8), dpi = 200)
+
+        # Plot each symptom line
+        for i, symptom in enumerate(df_pivot.columns):
+            sns.lineplot(x=df_pivot.index, y=df_pivot[symptom], label=symptom, color=palette[i])
 
         plt.title('Symptom Complaints Over Time')
         plt.xlabel('Date')
@@ -868,7 +981,7 @@ def generate_report(patient_id: str):
         plt.xticks(rotation=45)
         plt.grid(True)
         plt.tight_layout()
-        plt.savefig(f"graphs/{patient_id}_frequency_analysis.png")
+        plt.savefig(f"graphs/{patient_id}_frequency_analysis.png", dpi=200)
         plt.close()
 
         frequency_conclusion = "done"
@@ -913,14 +1026,21 @@ def generate_report(patient_id: str):
                 sentiment_conclusion = "first sentiment analysis results show neutral sentiment overall"
     
         # create a bar chart with sentiment on x ashix and count on y axis
-        plt.figure(figsize=(10, 6))
-        plt.bar(r1.keys(), r1.values())
-        plt.title(f"Patient {patient_id} Sentiment Analysis")
-        plt.xlabel("Sentiment")
-        plt.ylabel("Proportion")
-        plt.savefig(f"graphs/{patient_id}_sentiment_analysis.png")
-        plt.close()
-    
+        sentiment_keys = list(r1.keys())
+    sentiment_values = list(r1.values())
+
+    # Gradient blue colors
+    colors = sns.color_palette("Blues", n_colors=len(sentiment_keys))
+
+    plt.figure(figsize=(10, 8), dpi = 200)
+    plt.bar(sentiment_keys, sentiment_values, color=colors)
+    plt.title(f"Patient {patient_id} Sentiment Analysis")
+    plt.xlabel("Sentiment")
+    plt.ylabel("Probability")
+    plt.tight_layout()
+    plt.savefig(f"graphs/{patient_id}_sentiment_analysis.png", dpi=200)
+    plt.close()
+
     chat_message = ''
     if e_data is not None:
         chat_message += 'Emotion Analysis: ' + str(e_data) + '\n'
@@ -932,22 +1052,21 @@ def generate_report(patient_id: str):
     if chat_message == '':
         return jsonify({"error": "No data found for patient"}), 404
     
-    if False:
-        print(chat_message)
-        client = openai.OpenAI(api_key=OPENAI_API_KEY)
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant to a doctor. I will give you a list of symptoms and the number of times they were reported. "
-                                            "Their relative sentiment anslysis (positive, negative, neutral) and the emotion analysis (happy, sad, angry, surprise, neutral). "
-                                            "You will provide a conclusion about the patient's condition based on this data and write recommendations for the doctor."},
-                {"role": "user", "content": chat_message},
-            ]
-        )
-        chat_response = response.choices[0].message.content
-        print(chat_response)
-    else:
-        chat_response = "None"
+    print(chat_message)
+    client = openai.OpenAI(api_key=OPENAI_API_KEY)
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": "You are a helpful assistant to a doctor. I will give you a list of symptoms and the number of times they were reported. "
+                                        "Their relative sentiment anslysis (positive, negative, neutral) and the emotion analysis (happy, sad, angry, surprise, neutral). "
+                                        "First, provide a two sentence summary beginning with 'Summary: ' and a conclusion beginning with 'Conclusion: ' about whether or not the patient is healthy, improving, not healthy, or declining."
+                                        "Based on the information provided, if you think there is serious health risk, give a 2 sentence diagnosis on what the issue is. Have it start with 'Diagnosis: ' and say nothing is wrong if there is no serious issue."
+                                        "Finally, provide a list of three potential recommendations for the doctor on possible therapies and next steps for the patient. Have it begin with 'Reommendations: '."},
+            {"role": "user", "content": chat_message},
+        ]
+    )
+    chat_response = response.choices[0].message.content
+    print(chat_response)
 
     # get the most recent motion analysis
     cursor.execute('''
@@ -971,9 +1090,18 @@ def generate_report(patient_id: str):
     # get the most recent row by date
     rows = sorted(rows, key=lambda x: x['created_date'], reverse=True)
     if len(rows) == 0:
-        facial_conclusion = "no facial mapping analysis was recorded"
+        facial_conclusion = "No facial mapping analysis was recorded"
     else:
-        facial_conclusion = rows[0]['value']
+        facial_data = rows[0]['value']
+        change = facial_data.get("change_value", 0)
+        significant = facial_data.get("significant_change", False)
+        facial_conclusion = f"Facial symmetry from the last visit changed by {change:.1f}%."
+        if change < 2.5:
+            facial_conclusion += " This percent change is minimal and there is no significant facial changes detected."
+        else:
+            facial_conclusion += " This percent change is significant. Please examine because significant facial changes were detected since the last visit."
+
+
 
     filepath = generate_pdf_report(
         f"graphs/{patient_id}_frequency_analysis.png", 
@@ -984,7 +1112,9 @@ def generate_report(patient_id: str):
         emotion_conclusion,
         facial_conclusion,
         motion_conclusion,
-        chat_response
+        chat_response, 
+        patient_id, 
+        emotion_table_data
     )
 
     end_time = time.time()
@@ -1003,99 +1133,221 @@ def generate_report(patient_id: str):
         }
     }), 200
 
-def generate_pdf_report(freq_analysis_img, symptoms, sentiment_img, sentiment_conclusion, emotion_analysis_img, emotion_conclusion, facial_conclusion, motion_conclusion, ai_assessment):
+def generate_pdf_report(freq_analysis_img, symptoms, sentiment_img, sentiment_conclusion, emotion_analysis_img, emotion_conclusion, facial_conclusion, motion_conclusion, ai_assessment, patient_id, emotion_table_data):
     outfile_name = f"report_{int(time.time())}.pdf"
     c = canvas.Canvas(outfile_name, pagesize=letter)
     width, height = letter
-    cur_y = height - 50
 
-    # Add title
-    c.setFont("Helvetica", 20)
-    c.drawString(100, cur_y, "Doctor Visit Analysis Report")
-    c.setFont("Helvetica", 18)
-    cur_y -= 20
-    c.drawString(100, cur_y, "SUBJECTIVE")
-    c.setFont("Helvetica", 16)
-    cur_y -= 20
-    c.drawString(100, cur_y, "Emotion Analysis Output")
-    cur_y -= 320
-    c.drawImage(emotion_analysis_img, 100, cur_y, width=400, height=300)
-    paragraph = Paragraph(f"Emotion Analysis Conclusion: {emotion_conclusion}")
-    paragraph.wrapOn(c, width - 200, height - 100)
-    cur_y -= paragraph.height
-    paragraph.drawOn(c, 100, cur_y)
-    cur_y -= 20
-    # Add sentiment plot
-    c.drawString(100, cur_y, "Sentiment Analysis Output")
-    cur_y -= 320
-    c.drawImage(sentiment_img, 100, cur_y, width=400, height=300)
-    paragraph = Paragraph(f"Sentiment Analysis Conclusion: {sentiment_conclusion}")
-    paragraph.wrapOn(c, width - 200, height - 100)
-    cur_y -= paragraph.height
-    paragraph.drawOn(c, 100, cur_y)
-    c.showPage()
-    cur_y = height - 50
-    c.setFont("Helvetica", 18)
-    c.drawString(100, cur_y, "OBJECTIVE")
-    cur_y -= 20
-    c.setFont("Helvetica", 16)
-    c.drawString(100, cur_y, "Chief Complaint Counts")
-    # Create a table for the counts
-    data = [["Symptom", "Count"]]
-    print(symptoms)
-    print(symptoms['patient_symptoms'])
-    for symptom in symptoms['patient_symptoms']:
-        data.append([symptom["symptom"], symptom["count"]])
-    table = Table(data)
-    table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+    # Draw blue header bar with no border and flush top
+    c.setFillColorRGB(0.2, 0.45, 0.7)
+    c.rect(0, height - 50, width, 50, fill=1, stroke=0)
+    c.setFont("Verdana-Bold", 16)
+    c.setFillColor(colors.white)
+    c.drawString(30, height - 35, "Summarized Patient Report")
+    # Optional logo
+    c.drawImage("./uploads/logo.png", width - 80, height - 60, width=75, height=70, mask='auto')
+
+    styles = getSampleStyleSheet()
+    for style in styles.byName.values():
+        style.fontName = "Verdana"
+
+    cur_y = height - 80
+
+    # General Information Section
+    c.setFont("Verdana-Bold", 16)
+    c.setFillColorRGB(0.2, 0.45, 0.7)
+    c.drawString(30, cur_y, "1. General Information")
+    cur_y -= 25
+
+    # Info Table
+    info_data = [
+        ["Patient Name", "John Doe"],
+        ["Date & Time", time.strftime("%Y-%m-%d %H:%M")],
+        ["Doctor's Name", "Dr. Smith"],
+        ["Visit Type", "Routine Checkup"]
+    ]
+    info_table = Table(info_data, colWidths=[150, 400])
+    info_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (0, -1), colors.Color(0.6, 0.8, 0.95)),
+        ('TEXTCOLOR', (0, 0), (0, -1), colors.black),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (-1, -1), 'Verdana'),
+        ('FONTSIZE', (0, 0), (-1, -1), 12),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey)
     ]))
-    table.wrapOn(c, width, height)
-    print(table.__dict__)
-    cur_y -= (table._height + 10)
-    table.drawOn(c, 100, cur_y)
-    # Add the frequency analysis plot
-    cur_y -= 20
-    c.drawString(100, cur_y, "Frequency Analysis Output")
-    cur_y -= 320
-    c.drawImage(freq_analysis_img, 100, cur_y, width=400, height=300)
-    cur_y -= 50
-    c.drawString(100, cur_y, "Facial Mapping Analysis Output")
-    paragraph = Paragraph(f"Facial Mapping Analysis Conclusion: {facial_conclusion}")
-    paragraph.wrapOn(c, width - 200, height - 100)
-    cur_y -= paragraph.height
-    paragraph.drawOn(c, 100, cur_y)
-    cur_y -= 20
-    c.drawString(100, cur_y, "Motion Analysis Output")
-    paragraph = Paragraph(f"Motion Analysis Conclusion: {motion_conclusion}")
-    paragraph.wrapOn(c, width - 200, height - 100)
-    cur_y -= paragraph.height
-    paragraph.drawOn(c, 100, cur_y)
-    cur_y -= 20
-    c.showPage()
-    cur_y = height - 50
-    c.setFont("Helvetica", 18)
-    c.drawString(100, cur_y, "ASSESSMENT")
-    c.setFont("Helvetica", 16)
-    paragraph = Paragraph(f"AI Assessment: {ai_assessment}")
-    paragraph.wrapOn(c, width - 200, height - 100)
-    cur_y -= paragraph.height
-    paragraph.drawOn(c, 100, cur_y)
-    cur_y -= 20
+    info_table.wrapOn(c, width - 60, height)
+    info_table.drawOn(c, 30, cur_y - info_table._height)
+    cur_y -= info_table._height + 30
 
-    # Save the PDF
+    # Subjective Section
+    c.setFont("Verdana-Bold", 18)
+    c.drawString(30, cur_y, "2. Subjective")
+    cur_y -= 30
+
+    c.setFont("Verdana", 14)
+    c.drawString(275, cur_y, "Emotion Analysis Output")
+    c.drawString(30, cur_y, "Emotion Distribution (%)")
+    cur_y -= 235
+
+    emotion_table = Table(emotion_table_data, colWidths=[120, 80])  # Increased column widths
+    emotion_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.Color(0.2, 0.45, 0.7)),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('FONTNAME', (0, 0), (-1, 0), 'Verdana-Bold'),
+        ('FONTNAME', (0, 1), (-1, -1), 'Verdana'),
+        ('FONTSIZE', (0, 0), (-1, -1), 12),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+    ]))
+    emotion_table.wrapOn(c, width, height)
+    emotion_table.drawOn(c, 30, cur_y + 50)  # Draw table on left side
+
+    # Emotion graph (now on the right side)
+    c.drawImage(emotion_analysis_img, 250, cur_y, width=350, height=225, mask='auto')
+
+    cur_y -= 10
+    paragraph = Paragraph(f"Emotion Analysis Conclusion: {emotion_conclusion}", styles['Normal'])
+    paragraph.wrapOn(c, width - 60, height)
+    paragraph.drawOn(c, 30, cur_y - paragraph.height)
+    cur_y -= paragraph.height + 30
+
+    c.drawString(30, cur_y, "Sentiment Analysis Output")
+    cur_y -= 10
+
+    # Set image and text positions
+    img_x = 15
+    img_y = cur_y - 225  # image height
+    img_width = 350
+    img_height = 225
+
+    text_x = img_x + img_width + 20
+    text_width = width - text_x - 30
+
+    # Draw image on the left
+    c.drawImage(sentiment_img, img_x, img_y, width=img_width, height=img_height, mask='auto')
+
+    # Draw paragraph on the right
+    paragraph = Paragraph(f"Sentiment Analysis Conclusion: {sentiment_conclusion}", styles['Normal'])
+    paragraph.wrapOn(c, text_width, img_height)
+    paragraph.drawOn(c, text_x, img_y + img_height + paragraph.height - 75)
+
+    # Update cur_y for next section
+    cur_y = img_y - 30
+
+    ### page 2
+    c.showPage()
+    cur_y = height - 60
+
+    # Objective Section
+    c.setFont("Verdana-Bold", 18)
+    c.setFillColorRGB(0.2, 0.45, 0.7)
+    c.drawString(30, cur_y, "3. Objective")
+    cur_y -= 30
+
+    # Frequency Plot Title
+    c.setFont("Verdana", 14)
+    c.drawString(30, cur_y, "Frequency Analysis Output")
+    cur_y -= 30
+
+    # Frequency Graph
+    c.drawImage(freq_analysis_img, 20, cur_y - 200, width=325, height=225, mask='auto')
+
+    # Prepare symptom table
+    data = [["Symptom", "Count"]] + [[s["symptom"], s["count"]] for s in symptoms['patient_symptoms']]
+    table = Table(data, colWidths=[115, 80])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.Color(0.2, 0.45, 0.7)),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('FONTNAME', (0, 0), (-1, 0), 'Verdana-Bold'),
+        ('FONTNAME', (0, 1), (-1, -1), 'Verdana'),
+        ('FONTSIZE', (0, 0), (-1, -1), 12),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+    ]))
+    table.wrapOn(c, width - 60, height)
+
+    # Determine maximum height for alignment
+    max_height = max(275, table._height)
+
+    # Draw table on the right
+    table.drawOn(c, 375, cur_y - table._height)
+
+    cur_y -= max_height - 50
+
+    # Facial & Motion
+    c.setFont("Verdana", 14)
+    c.drawString(30, cur_y, "Facial Mapping Analysis Output")
+    if (facial_conclusion != "No facial mapping analysis was recorded"):
+        facial_img_path = get_latest_facial_image(patient_id)
+        c.drawImage(facial_img_path, 30, cur_y - 250, width=225, height=225, mask='auto')
+
+    paragraph = Paragraph(facial_conclusion, styles['Normal'])
+    paragraph.wrapOn(c, width - 275, height)
+    paragraph.drawOn(c, 275, cur_y - paragraph.height - 25)
+
+    cur_y -= 275
+    c.drawString(30, cur_y, "Gait Analysis")
+    paragraph = Paragraph(f"Motion Analysis Conclusion: {motion_conclusion}", styles['Normal'])
+    paragraph.wrapOn(c, width - 60, height)
+    paragraph.drawOn(c, 30, cur_y - paragraph.height - 5)
+
+    cur_y -= 50
+    c.setFont("Verdana-Bold", 18)
+    c.drawString(30, cur_y, "4. Assessment")
+    cur_y -= 20
+    c.setFont("Verdana", 16)
+
+    summary_text, diagnosis_text, conclusion_text, recommendations_text = parse_ai_assessment(ai_assessment)
+    c.setFont("Verdana", 16)
+    c.drawString(30, cur_y, "Summary")
+    paragraph = Paragraph(summary_text, styles['Normal'])
+    paragraph.wrapOn(c, width - 60, height)
+    paragraph.drawOn(c, 30, cur_y - paragraph.height - 10)
+    cur_y -= paragraph.height + 15
+
+    c.showPage()
+    cur_y = height - 80
+
+    # Assessment
+
+    c.setFillColorRGB(0.2, 0.45, 0.7)
+    c.setFont("Verdana", 16)
+    c.drawString(30, cur_y, "Conclusion")
+    paragraph = Paragraph(conclusion_text, styles['Normal'])
+    paragraph.wrapOn(c, width - 60, height)
+    paragraph.drawOn(c, 30, cur_y - paragraph.height - 5)
+    cur_y -= paragraph.height + 30
+
+    c.setFillColorRGB(0.2, 0.45, 0.7)
+    c.setFont("Verdana", 16)
+    c.drawString(30, cur_y, "Suggested Diagnosis")
+    paragraph = Paragraph(diagnosis_text, styles['Normal'])
+    paragraph.wrapOn(c, width - 60, height)
+    paragraph.drawOn(c, 30, cur_y - paragraph.height - 5)
+    cur_y -= paragraph.height + 30
+
+    c.setFillColorRGB(0.2, 0.45, 0.7)
+    c.setFont("Verdana", 16)
+    c.drawString(30, cur_y, "Recommendations for the Doctor")
+    paragraph = Paragraph(recommendations_text.replace("\n", "<br/>"), styles['Normal'])
+    paragraph.wrapOn(c, width - 60, height)
+    paragraph.drawOn(c, 30, cur_y - paragraph.height - 5)
+    cur_y -= paragraph.height + 30
+
+    # Save and move
     c.save()
     skyler_path = r"C:\Users\skyle\Documents\SeniorDesign\TheRoomKnows\TRK-APP\the-room-knows-ui\public" 
     jorge_path = r"C:\Users\Lujan\Documents\GitHub\TheRoomKnows\TRK-APP\the-room-knows-ui\public"
     trk_path = r'C:\Users\wired\OneDrive\Desktop\voiceToText\TheRoomKnows\TRK-APP\the-room-knows-ui\public'
     shutil.copy(outfile_name, trk_path)
     return f"/the-room-knows-ui/public/{outfile_name}"
+
+
 
 # Motion Analysis ----------------------------------------------------------------------------------
 @app.route("/motion-analysis/upload-video", methods=["POST"])
