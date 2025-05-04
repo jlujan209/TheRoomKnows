@@ -117,7 +117,7 @@ model = whisper.load_model('base')
 
 # Emotion Detection Model
 print(tensorflow.__version__)
-#ed_model = tensorflow.keras.models.load_model("emotion_detection.keras")
+ed_model = tensorflow.keras.models.load_model("emotion_detection.keras")
 emotion_labels = ["Angry", "Happy", "Neutral", "Sad", "Surprise"]
 
 # Face Detector Model
@@ -139,7 +139,7 @@ def login():
         print(f"Login attempt -> username: {username}, password: {password}")
 
         # Replace with your actual auth logic
-        if username == "admin" and password == "secret":
+        if username == "username" and password == "password":
             return jsonify({"access_token": "mocked-jwt-token"}), 200
         else:
             return jsonify({"error": "Invalid credentials"}), 401
@@ -479,6 +479,8 @@ def stop_session(patient_name):
 @app.route('/analysis/emotion-detection/save-results', methods=['POST'])
 def save_results():
     data = request.get_json()
+    if "undefined" in data:
+        data.pop('undefined')
     results = data.get('results')
     patient_name = data.get('patient_name')
     try:
@@ -847,10 +849,13 @@ def generate_report(patient_id: str):
         e_data = None
     else:
         emotion_conclusion = ""
-        #rows[0] = json.loads(rows[0]['value'])
+        rows[0] = json.loads(rows[0]['value'])
+        if 'undefined' in rows[0]:
+            rows[0].pop('undefined')
         # find the dominant emotion in the first row (most recent analysis)
         m = 0
         dominant_emotion = None
+        print(rows[0])
         for key, value in rows[0].items():
             if value > m:
                 m = value
@@ -858,7 +863,9 @@ def generate_report(patient_id: str):
         emotion_conclusion += f"The predominant emotion in this visit was {dominant_emotion}. "
         if len(rows) > 1:
             e_data = rows[0]
-            #rows[1] = json.loads(rows[1]['value'])
+            rows[1] = json.loads(rows[1]['value'])
+            if 'undefined' in rows[1]: 
+                rows[1].pop('undefined')
             change_detected_in = []
             
             if abs(rows[0]['Neutral'] - rows[1]['Neutral']) > 10:
@@ -884,9 +891,13 @@ def generate_report(patient_id: str):
 
     emotion_table_data = [["Emotion", "%"]]
     total = sum(rows[0].values())
-    for key, val in rows[0].items():
-        percent = round((val / total) * 100)
-        emotion_table_data.append([key, f"{percent}%"])
+    if total == 0:
+        for key in emotion_keys:
+            emotion_table_data.append([key, "0%"])
+    else:
+        for key, val in rows[0].items():
+            percent = round((val / total) * 100)
+            emotion_table_data.append([key, f"{percent}%"])
 
 
     # Gradient blue colors
@@ -906,23 +917,8 @@ def generate_report(patient_id: str):
     SELECT * FROM patient_analysis WHERE patient_id = ?
     AND analysis_type = 'frequency'
     ''', (patient_id,))
-
-    df['date'] = pd.to_datetime(df['date'])  # ensure 'date' is datetime for consistency
-
-    df_monthly = df.groupby([pd.Grouper(key='date', freq='M'), 'symptom'])['count'].sum().reset_index()
-    df_pivot = df_monthly.pivot_table(index='date', columns='symptom', values='count', aggfunc='sum').fillna(0)
-
-
-    rows = []
-    grouped = df.groupby('date')
-    for date, group in grouped:
-        patient_symptoms = [{"symptom": row['symptom'], "count": row['count']} for _, row in group.iterrows()]
-        rows.append({
-            "created_date": date.strftime("%Y-%m-%d"),
-            "value": json.dumps({"patient_symptoms": patient_symptoms})
-        })
-
-
+    rows = cursor.fetchall()
+    rows = sorted(rows, key=lambda x: x['created_date'], reverse=True)
     # get the most recent row by date
     # unblock stuff here
     # rows = cursor.fetchall()
@@ -1088,6 +1084,12 @@ def generate_report(patient_id: str):
     ''', (patient_id,))
     rows = cursor.fetchall()
     # get the most recent row by date
+    #
+    #
+    # TODO: the value column is not what we expect it to be.
+    # plz fix plz
+    # 
+    #
     rows = sorted(rows, key=lambda x: x['created_date'], reverse=True)
     if len(rows) == 0:
         facial_conclusion = "No facial mapping analysis was recorded"
@@ -1100,8 +1102,6 @@ def generate_report(patient_id: str):
             facial_conclusion += " This percent change is minimal and there is no significant facial changes detected."
         else:
             facial_conclusion += " This percent change is significant. Please examine because significant facial changes were detected since the last visit."
-
-
 
     filepath = generate_pdf_report(
         f"graphs/{patient_id}_frequency_analysis.png", 
