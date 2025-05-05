@@ -996,6 +996,13 @@ def generate_report(patient_id: str):
     else: # data found
         def avg_sentiment(r):
             total = r['positive'] + r['negative'] + r['neutral']
+            if total == 0:
+                return {
+                    'positive': 0,
+                    'negative': 0,
+                    'neutral': 0
+                }
+            
             return {
                 'positive': r['positive'] / total,
                 'negative': r['negative'] / total,
@@ -1095,13 +1102,7 @@ def generate_report(patient_id: str):
         facial_conclusion = "No facial mapping analysis was recorded"
     else:
         facial_data = rows[0]['value']
-        change = facial_data.get("change_value", 0)
-        significant = facial_data.get("significant_change", False)
-        facial_conclusion = f"Facial symmetry from the last visit changed by {change:.1f}%."
-        if change < 2.5:
-            facial_conclusion += " This percent change is minimal and there is no significant facial changes detected."
-        else:
-            facial_conclusion += " This percent change is significant. Please examine because significant facial changes were detected since the last visit."
+        facial_conclusion = facial_data
 
     filepath = generate_pdf_report(
         f"graphs/{patient_id}_frequency_analysis.png", 
@@ -1161,7 +1162,7 @@ def generate_pdf_report(freq_analysis_img, symptoms, sentiment_img, sentiment_co
 
     # Info Table
     info_data = [
-        ["Patient Name", "John Doe"],
+        ["Patient Name", patient_id],
         ["Date & Time", time.strftime("%Y-%m-%d %H:%M")],
         ["Doctor's Name", "Dr. Smith"],
         ["Visit Type", "Routine Checkup"]
