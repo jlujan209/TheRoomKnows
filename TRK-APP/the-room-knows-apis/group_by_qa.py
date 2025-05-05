@@ -187,7 +187,7 @@ def perform_frequency_analysis(text: dict):
     except:
         print("failed getting freq analysis")
         return None
-
+    print("clean_json_str", clean_json_str)
     data = json.loads(clean_json_str)
     return data
     

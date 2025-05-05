@@ -831,14 +831,23 @@ def parse_ai_assessment(ai_assessment):
         "Conclusion: " + sections["conclusion"],
         "Recommendations:\n" + sections["recommendations"]
     )
+def parse_t_f(x):
+    if x[0] == 'f':
+        return False
+    elif x[0] == 't':
+        return True
+
+    return None
 
 @app.route('/generate-report', methods=['GET'])
 def generate_report():
     patient_id = request.args.get('patient_id')
-    motion_analysis = request.args.get('motion_analysis')
-    emotion_detection = request.args.get('emotion_detection')
-    facial_mapping = request.args.get('facial_mapping')
-    speech_analysis = request.args.get('speech_analysis')
+    motion_analysis = parse_t_f(request.args.get('motion_analysis'))
+    emotion_detection = parse_t_f(request.args.get('emotion_detection'))
+    facial_mapping = parse_t_f(request.args.get('facial_mapping'))
+    speech_analysis = parse_t_f(request.args.get('speech_analysis'))
+    print(patient_id, motion_analysis, emotion_detection, facial_mapping, speech_analysis)
+    print(type(patient_id), type(motion_analysis), type(emotion_detection), type(facial_mapping), type(speech_analysis))
 
     print(f"patient_id: {patient_id}, motion_analysis: {motion_analysis}, emotion_detection: {emotion_detection}, facial_mapping: {facial_mapping}, speech_analysis: {speech_analysis}")
 
@@ -852,8 +861,8 @@ def generate_report():
     # get the two most recent rows by date
     rows = sorted(rows, key=lambda x: x['created_date'], reverse=True)[:2]
     # check for significant change
-    if len(rows) == 0:
-        emotion_conclusion = "No sentiment analysis was recorded."
+    if len(rows) == 0 or not emotion_analysis:
+        emotion_conclusion = "No emotion analysis was recorded."
         e_data = None
     else:
         emotion_conclusion = ""
@@ -891,7 +900,8 @@ def generate_report():
             else:
                 emotion_conclusion = "Significant change detected in emotions since last visit: "
                 emotion_conclusion += ", ".join(change_detected_in) + '. '
-        
+        if len(rows) == 1:
+            e_data = None
     
     # create a plot of most recent visit
     emotion_keys = list(rows[0].keys())
@@ -931,7 +941,7 @@ def generate_report():
     # unblock stuff here
     # rows = cursor.fetchall()
     # rows = sorted(rows, key=lambda x: x['created_date'], reverse=True)
-    if len(rows) == 0:
+    if len(rows) == 0 or not speech_analysis:
         frequency_conclusion = "No frequency analysis was recorded."
         freq_data = None
     else:
@@ -998,7 +1008,7 @@ def generate_report():
     rows = cursor.fetchall()
     # get the most recent row by date
     rows = sorted(rows, key=lambda x: x['created_date'], reverse=True)
-    if len(rows) == 0: # no sentiment analysis data found
+    if len(rows) == 0 or not speech_analysis: # no sentiment analysis data found
         sentiment_conclusion = "no sentiment analysis was recorded"
         rows = None
     else: # data found
@@ -1087,7 +1097,7 @@ def generate_report():
     rows = cursor.fetchall()
     # get the most recent row by date
     rows = sorted(rows, key=lambda x: x['created_date'], reverse=True)
-    if len(rows) == 0:
+    if len(rows) == 0 or not motion_analysis:
         motion_conclusion = "no motion analysis was recorded"
     else:
         motion_conclusion = rows[0]['value']
@@ -1106,7 +1116,7 @@ def generate_report():
     # 
     #
     rows = sorted(rows, key=lambda x: x['created_date'], reverse=True)
-    if len(rows) == 0 or rows[0]['created_date']:
+    if len(rows) == 0 or not facial_mapping:
         facial_conclusion = "No facial mapping analysis was recorded"
     else:
         facial_data = rows[0]['value']
@@ -1294,6 +1304,9 @@ def generate_pdf_report(freq_analysis_img, symptoms, sentiment_img, sentiment_co
     if (facial_conclusion != "No facial mapping analysis was recorded"):
         facial_img_path = get_latest_facial_image(patient_id)
         c.drawImage(facial_img_path, 30, cur_y - 250, width=225, height=225, mask='auto')
+    else:
+        c.drawImage("./uploads/no_facial_mapping.jpg", 30, cur_y - 250, width=225, height=225, mask = 'auto')
+    
 
     paragraph = Paragraph(facial_conclusion, styles['Normal'])
     paragraph.wrapOn(c, width - 275, height)
