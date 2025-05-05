@@ -1098,7 +1098,7 @@ def generate_report(patient_id: str):
     # 
     #
     rows = sorted(rows, key=lambda x: x['created_date'], reverse=True)
-    if len(rows) == 0:
+    if len(rows) == 0 or rows[0]['created_date']:
         facial_conclusion = "No facial mapping analysis was recorded"
     else:
         facial_data = rows[0]['value']
