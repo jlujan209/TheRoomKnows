@@ -832,8 +832,16 @@ def parse_ai_assessment(ai_assessment):
         "Recommendations:\n" + sections["recommendations"]
     )
 
-@app.route('/generate-report/<patient_id>', methods=['GET'])
-def generate_report(patient_id: str):
+@app.route('/generate-report', methods=['GET'])
+def generate_report():
+    patient_id = request.args.get('patient_id')
+    motion_analysis = request.args.get('motion_analysis')
+    emotion_detection = request.args.get('emotion_detection')
+    facial_mapping = request.args.get('facial_mapping')
+    speech_analysis = request.args.get('speech_analysis')
+
+    print(f"patient_id: {patient_id}, motion_analysis: {motion_analysis}, emotion_detection: {emotion_detection}, facial_mapping: {facial_mapping}, speech_analysis: {speech_analysis}")
+
     start_time = time.time()
     # get emotion data
     cursor.execute('''

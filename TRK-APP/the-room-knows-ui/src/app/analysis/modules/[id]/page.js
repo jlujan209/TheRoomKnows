@@ -69,7 +69,7 @@ const AnalysisPage = () => {
           />
         );
       case "report":
-        return <ReportGeneration patient_name={patient_name} />;
+        return <ReportGeneration patient_name={patient_name} motion_analysis={modules.motionAnalysis} emotion_detection={modules.emotionDetection} facial_mapping={modules.facialMapping} speech_analysis={modules.speechAnalysis}/>;
       default:
         return null;
     }

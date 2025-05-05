@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 
-const ReportGeneration = ({ patient_name }) => {
+const ReportGeneration = ({ patient_name, motion_analysis, emotion_detection, facial_mapping, speech_analysis }) => {
   const router = useRouter();
   const [pdfUrl, setPdfUrl] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -12,7 +12,7 @@ const ReportGeneration = ({ patient_name }) => {
   useEffect(() => {
     const generateReport = async () => {
       try {
-        const res = await fetch(`http://localhost:5000/generate-report/${encodeURIComponent(patient_name)}`);
+        const res = await fetch(`http://localhost:5000/generate-report?patient_id=${patient_name}&motion_analysis=${motion_analysis}&emotion_detection=${emotion_detection}&facial_mapping=${facial_mapping}&speech_analysis=${speech_analysis}`);
         const data = await res.json();
 
         if (res.ok && data.filepath) {
